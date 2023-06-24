@@ -1,0 +1,267 @@
+package grpc
+
+import (
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"log"
+	"sync"
+	"time"
+
+	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/tochemey/gopack/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/reflection"
+)
+
+const (
+	// MaxConnectionAge is the duration a connection may exist before shutdown
+	MaxConnectionAge = 600 * time.Second
+	// MaxConnectionAgeGrace is the maximum duration a
+	// connection will be kept alive for outstanding RPCs to complete
+	MaxConnectionAgeGrace = 60 * time.Second
+	// KeepAliveTime is the period after which a keepalive ping is sent on the
+	// transport
+	KeepAliveTime = 1200 * time.Second
+
+	// default grpc port
+	defaultGrpcPort = 50051
+)
+
+var (
+	errMissingTraceURL         = errors.New("trace URL is not defined")
+	errMissingServiceName      = errors.New("service name is not defined")
+	errMsgCannotUseSameBuilder = errors.New("cannot use the same builder to build more than once")
+)
+
+// ServerBuilder helps build a grpc grpcServer
+type ServerBuilder struct {
+	options           []grpc.ServerOption
+	services          []serviceRegistry
+	enableReflection  bool
+	enableHealthCheck bool
+	metricsEnabled    bool
+	tracingEnabled    bool
+	serviceName       string
+	grpcPort          int
+	grpcHost          string
+	traceURL          string
+	logger            log.Logger
+
+	shutdownHook ShutdownHook
+	isBuilt      bool
+
+	rwMutex *sync.RWMutex
+}
+
+// NewServerBuilder creates an instance of ServerBuilder
+func NewServerBuilder() *ServerBuilder {
+	return &ServerBuilder{
+		grpcPort: defaultGrpcPort,
+		isBuilt:  false,
+		rwMutex:  &sync.RWMutex{},
+	}
+}
+
+// NewServerBuilderFromConfig returns a grpcserver.ServerBuilder given a grpc config
+func NewServerBuilderFromConfig(cfg *Config) *ServerBuilder {
+	// build the grpc server
+	return NewServerBuilder().
+		WithReflection(cfg.EnableReflection).
+		WithDefaultUnaryInterceptors().
+		WithDefaultStreamInterceptors().
+		WithTracingEnabled(cfg.TraceEnabled).
+		WithTraceURL(cfg.TraceURL).
+		WithServiceName(cfg.ServiceName).
+		WithPort(int(cfg.GrpcPort)).
+		WithHost(cfg.GrpcHost)
+}
+
+// WithShutdownHook sets the shutdown hook
+func (sb *ServerBuilder) WithShutdownHook(fn ShutdownHook) *ServerBuilder {
+	sb.shutdownHook = fn
+	return sb
+}
+
+// WithPort sets the grpc service port
+func (sb *ServerBuilder) WithPort(port int) *ServerBuilder {
+	sb.grpcPort = port
+	return sb
+}
+
+// WithHost sets the grpc service host
+func (sb *ServerBuilder) WithHost(host string) *ServerBuilder {
+	sb.grpcHost = host
+	return sb
+}
+
+// WithMetricsEnabled enable grpc metrics
+func (sb *ServerBuilder) WithMetricsEnabled(enabled bool) *ServerBuilder {
+	sb.metricsEnabled = enabled
+	return sb
+}
+
+// WithTracingEnabled enables tracing
+func (sb *ServerBuilder) WithTracingEnabled(enabled bool) *ServerBuilder {
+	sb.tracingEnabled = enabled
+	return sb
+}
+
+// WithTraceURL sets the tracing URL
+func (sb *ServerBuilder) WithTraceURL(traceURL string) *ServerBuilder {
+	sb.traceURL = traceURL
+	return sb
+}
+
+// WithOption adds a grpc service option
+func (sb *ServerBuilder) WithOption(o grpc.ServerOption) *ServerBuilder {
+	sb.options = append(sb.options, o)
+	return sb
+}
+
+// WithService registers service with gRPC grpcServer
+func (sb *ServerBuilder) WithService(service serviceRegistry) *ServerBuilder {
+	sb.services = append(sb.services, service)
+	return sb
+}
+
+// WithServiceName sets the service name
+func (sb *ServerBuilder) WithServiceName(serviceName string) *ServerBuilder {
+	sb.serviceName = serviceName
+	return sb
+}
+
+// WithReflection enables the reflection
+// gRPC RunnableService Reflection provides information about publicly-accessible gRPC services on a grpcServer,
+// and assists clients at runtime to construct RPC requests and responses without precompiled service information.
+// It is used by gRPC CLI, which can be used to introspect grpcServer protos and send/receive test RPCs.
+// Warning! We should not have this enabled in production
+func (sb *ServerBuilder) WithReflection(enabled bool) *ServerBuilder {
+	sb.enableReflection = enabled
+	return sb
+}
+
+// WithHealthCheck enables the default health check service
+func (sb *ServerBuilder) WithHealthCheck(enabled bool) *ServerBuilder {
+	sb.enableHealthCheck = enabled
+	return sb
+}
+
+// WithKeepAlive is used to set keepalive and max-age parameters on the grpcServer-side.
+func (sb *ServerBuilder) WithKeepAlive(serverParams keepalive.ServerParameters) *ServerBuilder {
+	keepAlive := grpc.KeepaliveParams(serverParams)
+	sb.WithOption(keepAlive)
+	return sb
+}
+
+// WithDefaultKeepAlive is used to set the default keep alive parameters on the grpcServer-side
+func (sb *ServerBuilder) WithDefaultKeepAlive() *ServerBuilder {
+	return sb.WithKeepAlive(keepalive.ServerParameters{
+		MaxConnectionIdle:     0,
+		MaxConnectionAge:      MaxConnectionAge,
+		MaxConnectionAgeGrace: MaxConnectionAgeGrace,
+		Time:                  KeepAliveTime,
+		Timeout:               0,
+	})
+}
+
+// WithStreamInterceptors set a list of interceptors to the Grpc grpcServer for stream connection
+// By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the grpcServer side.
+// By using `grpcMiddleware` we are able to provides convenient method to add a list of interceptors
+func (sb *ServerBuilder) WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) *ServerBuilder {
+	chain := grpc.StreamInterceptor(grpcMiddleware.ChainStreamServer(interceptors...))
+	sb.WithOption(chain)
+	return sb
+}
+
+// WithUnaryInterceptors set a list of interceptors to the Grpc grpcServer for unary connection
+// By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the grpcServer side.
+// By using `grpc_middleware` we are able to provides convenient method to add a list of interceptors
+func (sb *ServerBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) *ServerBuilder {
+	chain := grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(interceptors...))
+	sb.WithOption(chain)
+	return sb
+}
+
+// WithTLSCert sets credentials for grpcServer connections
+func (sb *ServerBuilder) WithTLSCert(cert *tls.Certificate) *ServerBuilder {
+	sb.WithOption(grpc.Creds(credentials.NewServerTLSFromCert(cert)))
+	return sb
+}
+
+// WithDefaultUnaryInterceptors sets the default unary interceptors for the grpc grpcServer
+func (sb *ServerBuilder) WithDefaultUnaryInterceptors() *ServerBuilder {
+	return sb.WithUnaryInterceptors(
+		NewRequestIDUnaryServerInterceptor(),
+		NewTracingUnaryInterceptor(),
+		NewMetricUnaryInterceptor(),
+		NewRecoveryUnaryInterceptor(),
+	)
+}
+
+// WithDefaultStreamInterceptors sets the default stream interceptors for the grpc grpcServer
+func (sb *ServerBuilder) WithDefaultStreamInterceptors() *ServerBuilder {
+	return sb.WithStreamInterceptors(
+		NewRequestIDStreamServerInterceptor(),
+		NewTracingStreamInterceptor(),
+		NewMetricStreamInterceptor(),
+		NewRecoveryStreamInterceptor(),
+	)
+}
+
+// Build is responsible for building a GRPC grpcServer
+func (sb *ServerBuilder) Build() (Server, error) {
+	// check whether the builder has already been used
+	sb.rwMutex.Lock()
+	defer sb.rwMutex.Unlock()
+	if sb.isBuilt {
+		return nil, errMsgCannotUseSameBuilder
+	}
+
+	// create the grpc server
+	srv := grpc.NewServer(sb.options...)
+
+	// create the grpc server
+	addr := fmt.Sprintf("%s:%d", sb.grpcHost, sb.grpcPort)
+	grpcServer := &grpcServer{
+		addr:         addr,
+		server:       srv,
+		shutdownHook: sb.shutdownHook,
+	}
+
+	// register services
+	for _, service := range sb.services {
+		service.RegisterService(srv)
+	}
+
+	// set reflection when enable
+	if sb.enableReflection {
+		reflection.Register(srv)
+	}
+
+	// register health check if enabled
+	if sb.enableHealthCheck {
+		grpc_health_v1.RegisterHealthServer(srv, health.NewServer())
+	}
+
+	// register tracing if enabled
+	if sb.tracingEnabled {
+		if sb.traceURL == "" {
+			return nil, errMissingTraceURL
+		}
+
+		if sb.serviceName == "" {
+			return nil, errMissingServiceName
+		}
+		grpcServer.traceProvider = trace.NewProvider(sb.traceURL, sb.serviceName)
+	}
+
+	// set isBuild
+	sb.isBuilt = true
+
+	return grpcServer, nil
+}

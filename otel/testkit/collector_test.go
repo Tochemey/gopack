@@ -1,4 +1,4 @@
-package trace
+package testkit
 
 import (
 	"net"
@@ -9,38 +9,38 @@ import (
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 )
 
-type CollectorKitSuite struct {
+type OtelCollectorSuite struct {
 	suite.Suite
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestCollectorKit(t *testing.T) {
-	suite.Run(t, new(CollectorKitSuite))
+func TestOtelCollector(t *testing.T) {
+	suite.Run(t, new(OtelCollectorSuite))
 }
 
-func (s *CollectorKitSuite) TestNewCollectorKit() {
-	collectorKit := NewCollectorKit(&CollectorKitConfig{Endpoint: "localhost:0"})
+func (s *OtelCollectorSuite) TestNewOtelCollector() {
+	collectorKit := NewTestCollector(&TestCollectorConfig{Endpoint: "localhost:0"})
 	s.Assert().NotNil(collectorKit)
 }
 
-func (s *CollectorKitSuite) TestGetMetrics() {
-	collectorKit := NewCollectorKit(&CollectorKitConfig{Endpoint: "localhost:0"})
+func (s *OtelCollectorSuite) TestGetMetrics() {
+	collectorKit := NewTestCollector(&TestCollectorConfig{Endpoint: "localhost:0"})
 	s.Assert().NotNil(collectorKit)
 	metrics := collectorKit.GetMetrics()
 	s.Assert().NotNil(metrics)
 	s.Assert().Empty(metrics)
 }
 
-func (s *CollectorKitSuite) TestGetEndPoint() {
-	collectorKit := NewCollectorKit(&CollectorKitConfig{Endpoint: "localhost:4774"})
+func (s *OtelCollectorSuite) TestGetEndPoint() {
+	collectorKit := NewTestCollector(&TestCollectorConfig{Endpoint: "localhost:4774"})
 	s.Assert().NotNil(collectorKit)
 	endpoint := collectorKit.GetEndPoint()
 	s.Assert().Empty(endpoint)
 }
 
-func (s *CollectorKitSuite) TestStartCollectorKit() {
-	collectorKit, err := StartCollectorKit()
+func (s *OtelCollectorSuite) TestStartCollectorKit() {
+	collectorKit, err := StartOtelCollector()
 	s.Assert().NoError(err)
 	s.Assert().NotNil(collectorKit)
 	endpoint := collectorKit.GetEndPoint()
@@ -50,8 +50,8 @@ func (s *CollectorKitSuite) TestStartCollectorKit() {
 	s.Assert().NoError(err)
 }
 
-func (s *CollectorKitSuite) TestStartCollectorKitWithEndpoint() {
-	collectorKit, err := StartCollectorKitWithEndpoint("127.0.0.1:4447")
+func (s *OtelCollectorSuite) TestStartCollectorKitWithEndpoint() {
+	collectorKit, err := StartOtelCollectorWithEndpoint("127.0.0.1:4447")
 	s.Assert().NoError(err)
 	s.Assert().NotNil(collectorKit)
 	endpoint := collectorKit.GetEndPoint()
@@ -61,9 +61,9 @@ func (s *CollectorKitSuite) TestStartCollectorKitWithEndpoint() {
 	s.Assert().NoError(err)
 }
 
-func (s *CollectorKitSuite) TestStartCollectorKitWithConfig() {
+func (s *OtelCollectorSuite) TestStartCollectorKitWithConfig() {
 	s.Run("valid endpoint", func() {
-		collectorKit, err := StartCollectorKitWithConfig(&CollectorKitConfig{
+		collectorKit, err := StartOtelCollectorWithConfig(&TestCollectorConfig{
 			Endpoint: "127.0.0.1:4447",
 		})
 		s.Assert().NoError(err)
@@ -76,7 +76,7 @@ func (s *CollectorKitSuite) TestStartCollectorKitWithConfig() {
 	})
 
 	s.Run("invalid endpoint", func() {
-		collectorKit, err := StartCollectorKitWithConfig(&CollectorKitConfig{
+		collectorKit, err := StartOtelCollectorWithConfig(&TestCollectorConfig{
 			Endpoint: "some-point",
 		})
 		s.Assert().Error(err)
@@ -84,7 +84,7 @@ func (s *CollectorKitSuite) TestStartCollectorKitWithConfig() {
 	})
 }
 
-func (s *CollectorKitSuite) TestAddMetrics() {
+func (s *OtelCollectorSuite) TestAddMetrics() {
 	s.Run("when there are some metrics", func() {
 		metricStorage := NewMetricsStorage()
 		metricStorage.AddMetrics(&v1.ExportMetricsServiceRequest{
@@ -120,7 +120,7 @@ func (s *CollectorKitSuite) TestAddMetrics() {
 	})
 }
 
-func (s *CollectorKitSuite) TestStorageGetMetrics() {
+func (s *OtelCollectorSuite) TestStorageGetMetrics() {
 	s.Run("when there no metrics", func() {
 		ms := NewMetricsStorage()
 		metrics := ms.GetMetrics()
@@ -150,11 +150,11 @@ func (s *CollectorKitSuite) TestStorageGetMetrics() {
 	})
 }
 
-func (s *CollectorKitSuite) TestListener() {
+func (s *OtelCollectorSuite) TestListener() {
 	ln, err := net.Listen("tcp", "localhost:50051")
 	s.Assert().NoError(err)
 
-	lnr := newListener(ln)
+	lnr := NewListener(ln)
 	s.Assert().NotNil(lnr)
 
 	addr := lnr.Addr()

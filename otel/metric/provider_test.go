@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tochemey/gopack/otel/testkit"
+
 	"github.com/stretchr/testify/suite"
-	"github.com/tochemey/gopack/trace"
 	"github.com/travisjeffery/go-dynaport"
 )
 
@@ -16,7 +17,7 @@ type ProviderTestSuite struct {
 
 	collectorEndPoint string
 	serviceName       string
-	collector         trace.Collector
+	collector         testkit.TestCollector
 }
 
 // In order for 'go test' to run this suite, we need to create
@@ -31,7 +32,7 @@ func (s *ProviderTestSuite) SetupSuite() {
 	ports := dynaport.Get(1)
 	s.collectorEndPoint = fmt.Sprintf(":%d", ports[0])
 	s.serviceName = "metrics-test"
-	s.collector, err = trace.StartCollectorKitWithEndpoint(s.collectorEndPoint)
+	s.collector, err = testkit.StartOtelCollectorWithEndpoint(s.collectorEndPoint)
 	s.Assert().NoError(err)
 }
 
