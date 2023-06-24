@@ -103,7 +103,7 @@ func createConnectionString(host string, port int, name, user string, password s
 func (p *postgres) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	// Create a span
 	tracer := otel.GetTracerProvider()
-	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "store.exec")
+	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "Exec")
 	defer span.End()
 	return p.dbConnection.ExecContext(spanCtx, query, args...)
 }
@@ -112,7 +112,7 @@ func (p *postgres) Exec(ctx context.Context, query string, args ...interface{}) 
 func (p *postgres) BeginTx(ctx context.Context, txOptions *sql.TxOptions) (*sql.Tx, error) {
 	// Create a span
 	tracer := otel.GetTracerProvider()
-	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "store.beginTx")
+	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "BeginTx")
 	defer span.End()
 	return p.dbConnection.BeginTx(spanCtx, txOptions)
 }
@@ -121,7 +121,7 @@ func (p *postgres) BeginTx(ctx context.Context, txOptions *sql.TxOptions) (*sql.
 func (p *postgres) SelectAll(ctx context.Context, dst interface{}, query string, args ...interface{}) error {
 	// Create a span
 	tracer := otel.GetTracerProvider()
-	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "store.selectAll")
+	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "SelectAll")
 	defer span.End()
 	err := sqlscan.Select(spanCtx, p.dbConnection, dst, query, args...)
 	if err != nil {
@@ -138,7 +138,7 @@ func (p *postgres) SelectAll(ctx context.Context, dst interface{}, query string,
 func (p *postgres) Select(ctx context.Context, dst interface{}, query string, args ...interface{}) error {
 	// Create a span
 	tracer := otel.GetTracerProvider()
-	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "store.select")
+	spanCtx, span := tracer.Tracer(instrumentationName).Start(ctx, "Select")
 	defer span.End()
 	err := sqlscan.Get(spanCtx, p.dbConnection, dst, query, args...)
 	if err != nil {
@@ -153,6 +153,9 @@ func (p *postgres) Select(ctx context.Context, dst interface{}, query string, ar
 
 // Disconnect the database connection.
 func (p *postgres) Disconnect(ctx context.Context) error {
+	tracer := otel.GetTracerProvider()
+	_, span := tracer.Tracer(instrumentationName).Start(ctx, "Disconnect")
+	defer span.End()
 	if p.dbConnection == nil {
 		return nil
 	}
