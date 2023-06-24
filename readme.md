@@ -6,7 +6,7 @@ GoPack is kind of your Swiss Army Knife for golang microservices.
 The project adheres to [Semantic Versioning](https://semver.org) and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## Features
--[x] gRPC client and server builder to quickly build and start a gRPC service. Traces and Metrics are automatically handled depending upon the configuration.
+- [x] gRPC client and server builder to quickly build and start a gRPC service. Traces and Metrics are automatically handled depending upon the configuration.
     - [x] gRPC server to build gRPC services
     - [x] gRPC client to build gRPC clients
     - [x] ratelimiter interceptors (unary/stream) for both client and server
