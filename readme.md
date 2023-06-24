@@ -7,6 +7,8 @@ The project adheres to [Semantic Versioning](https://semver.org) and [Convention
 
 ## Features
 -[x] gRPC client and server builder to quickly build and start a gRPC service. Traces and Metrics are automatically handled depending upon the configuration.
+    - [x] gRPC server to build gRPC services
+    - [x] gRPC client to build gRPC clients
     - [x] ratelimiter interceptors (unary/stream) for both client and server
     - [x] trace interceptors (unary/stream) for both client and server
     - [x] metrics interceptors (unary/stream) for both client and server
