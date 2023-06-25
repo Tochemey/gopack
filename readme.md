@@ -20,6 +20,7 @@ The project adheres to [Semantic Versioning](https://semver.org) and [Convention
     - testkit to smoothly implement unit/integration tests with postgres
 - OpenTelemetry trace and metrics provider to simplify the creation of trace and metrics providers
     - testkit to create a opentelemetry test collector
+- Scheduler wrapper around [gocron](https://github.com/go-co-op/gocron)
 
 ### Note
 Traces and Metrics are accessible via the integration with [OpenTelemetry](https://github.com/open-telemetry/opentelemetry-go).
