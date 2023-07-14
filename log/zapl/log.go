@@ -14,7 +14,7 @@ import (
 )
 
 // DefaultLogger represents the default Log to use
-// This Log wraps zerolog under the hood
+// This Log wraps zap under the hood
 var DefaultLogger = New(log.DebugLevel, os.Stdout, os.Stderr)
 
 // DiscardLogger is used not log anything
@@ -94,7 +94,7 @@ func New(level log.Level, writers ...io.Writer) *Log {
 	var core zapcore.Core
 
 	// create the list of writers
-	var syncWriters []zapcore.WriteSyncer
+	syncWriters := make([]zapcore.WriteSyncer, len(writers))
 	for i, writer := range writers {
 		syncWriters[i] = zapcore.AddSync(writer)
 	}
