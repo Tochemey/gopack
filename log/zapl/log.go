@@ -70,6 +70,13 @@ func Panicf(format string, v ...any) {
 	DefaultLogger.Panicf(format, v...)
 }
 
+// WithContext returns the Logger associated with the ctx.
+// This will set the traceid, requestid and spanid in case there are
+// in the context
+func WithContext(ctx context.Context) log.Logger {
+	return DefaultLogger.WithContext(ctx)
+}
+
 // Log implements Logger interface with the underlying zap as
 // the underlying logging library
 type Log struct {
