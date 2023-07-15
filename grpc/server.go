@@ -21,7 +21,7 @@ type ShutdownHook func(ctx context.Context) error
 type Server interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
-	Run(ctx context.Context)
+	AwaitTermination(ctx context.Context)
 	GetListener() net.Listener
 	GetServer() *grpc.Server
 }
@@ -103,9 +103,9 @@ func (s *grpcServer) Stop(ctx context.Context) error {
 	return nil
 }
 
-// Run makes the program wait for the signal termination
+// AwaitTermination makes the program wait for the signal termination
 // Valid signal termination (SIGINT, SIGTERM). This function should succeed Start.
-func (s *grpcServer) Run(ctx context.Context) {
+func (s *grpcServer) AwaitTermination(ctx context.Context) {
 	interruptSignal := make(chan os.Signal, 1)
 	signal.Notify(interruptSignal, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-interruptSignal
