@@ -5,8 +5,7 @@ go 1.20
 require (
 	github.com/XSAM/otelsql v0.23.0
 	github.com/felixge/httpsnoop v1.0.3
-	github.com/georgysavva/scany/v2 v2.0.0
-	github.com/georgysavva/scany/v2 v2.0.0
+	github.com/georgysavva/scany v1.2.1
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-co-op/gocron v1.30.1
 	github.com/google/uuid v1.3.0
@@ -29,7 +28,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.56.2
+	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
 )
 
