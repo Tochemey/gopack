@@ -5,10 +5,9 @@ go 1.20
 require (
 	github.com/XSAM/otelsql v0.23.0
 	github.com/felixge/httpsnoop v1.0.3
-	github.com/georgysavva/scany/v2 v2.0.0
-	github.com/georgysavva/scany/v2 v2.0.0
+	github.com/georgysavva/scany v1.2.1
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/go-co-op/gocron v1.30.1
+	github.com/go-co-op/gocron v1.31.1
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -27,7 +26,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v0.39.0
 	go.opentelemetry.io/otel/trace v1.16.0
 	go.opentelemetry.io/proto/otlp v1.0.0
-	go.uber.org/zap v1.24.0
+	go.uber.org/zap v1.25.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
