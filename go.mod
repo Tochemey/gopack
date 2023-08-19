@@ -8,7 +8,7 @@ require (
 	github.com/georgysavva/scany v1.2.1
 	github.com/georgysavva/scany/v2 v2.0.0
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/go-co-op/gocron v1.31.1
+	github.com/go-co-op/gocron v1.31.2
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
