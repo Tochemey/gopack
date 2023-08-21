@@ -5,10 +5,9 @@ go 1.20
 require (
 	github.com/XSAM/otelsql v0.23.0
 	github.com/felixge/httpsnoop v1.0.3
-	github.com/georgysavva/scany/v2 v2.0.0
-	github.com/georgysavva/scany/v2 v2.0.0
+	github.com/georgysavva/scany v1.2.1
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/go-co-op/gocron v1.31.2
+	github.com/go-co-op/gocron v1.32.1
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
