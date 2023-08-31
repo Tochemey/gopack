@@ -11,6 +11,7 @@ require (
 	github.com/go-co-op/gocron v1.32.1
 	github.com/google/uuid v1.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/lib/pq v1.10.9
 	github.com/ory/dockertest v3.3.5+incompatible
