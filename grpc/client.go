@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -73,7 +72,7 @@ func (b *ClientBuilder) WithKeepAliveParams(params keepalive.ClientParameters) *
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the server side.
 // By using `grpc_middleware` we are able to provides convenient method to add a list of interceptors
 func (b *ClientBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryClientInterceptor) *ClientBuilder {
-	b.options = append(b.options, grpc.WithUnaryInterceptor(grpcMiddleware.ChainUnaryClient(interceptors...)))
+	b.options = append(b.options, grpc.WithChainUnaryInterceptor(interceptors...))
 	return b
 }
 
@@ -81,7 +80,7 @@ func (b *ClientBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryClientIn
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the server side.
 // By using `grpc_middleware` we are able to provides convenient method to add a list of interceptors
 func (b *ClientBuilder) WithStreamInterceptors(interceptors ...grpc.StreamClientInterceptor) *ClientBuilder {
-	b.options = append(b.options, grpc.WithStreamInterceptor(grpcMiddleware.ChainStreamClient(interceptors...)))
+	b.options = append(b.options, grpc.WithChainStreamInterceptor(interceptors...))
 	return b
 }
 

@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 
-	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -67,7 +66,7 @@ func (sb *InProcessServerBuilder) WithOption(o grpc.ServerOption) *InProcessServ
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the server side.
 // By using `grpcMiddleware` we are able to provides convenient method to add a list of interceptors
 func (sb *InProcessServerBuilder) WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) *InProcessServerBuilder {
-	chain := grpc.StreamInterceptor(grpcMiddleware.ChainStreamServer(interceptors...))
+	chain := grpc.ChainStreamInterceptor(interceptors...)
 	sb.WithOption(chain)
 	return sb
 }
@@ -76,7 +75,7 @@ func (sb *InProcessServerBuilder) WithStreamInterceptors(interceptors ...grpc.St
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the server side.
 // By using `grpcMiddleware` we are able to provides convenient method to add a list of interceptors
 func (sb *InProcessServerBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) *InProcessServerBuilder {
-	chain := grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(interceptors...))
+	chain := grpc.ChainUnaryInterceptor(interceptors...)
 	sb.WithOption(chain)
 	return sb
 }

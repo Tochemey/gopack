@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/tochemey/gopack/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -173,7 +172,7 @@ func (sb *ServerBuilder) WithDefaultKeepAlive() *ServerBuilder {
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the grpcServer side.
 // By using `grpcMiddleware` we are able to provides convenient method to add a list of interceptors
 func (sb *ServerBuilder) WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) *ServerBuilder {
-	chain := grpc.StreamInterceptor(grpcMiddleware.ChainStreamServer(interceptors...))
+	chain := grpc.ChainStreamInterceptor(interceptors...)
 	sb.WithOption(chain)
 	return sb
 }
@@ -182,7 +181,7 @@ func (sb *ServerBuilder) WithStreamInterceptors(interceptors ...grpc.StreamServe
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the grpcServer side.
 // By using `grpc_middleware` we are able to provides convenient method to add a list of interceptors
 func (sb *ServerBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) *ServerBuilder {
-	chain := grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(interceptors...))
+	chain := grpc.ChainUnaryInterceptor(interceptors...)
 	sb.WithOption(chain)
 	return sb
 }
