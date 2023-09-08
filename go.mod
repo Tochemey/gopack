@@ -6,12 +6,10 @@ require (
 	github.com/XSAM/otelsql v0.23.0
 	github.com/felixge/httpsnoop v1.0.3
 	github.com/georgysavva/scany v1.2.1
-	github.com/georgysavva/scany/v2 v2.0.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-co-op/gocron v1.33.1
 	github.com/google/uuid v1.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/lib/pq v1.10.9
 	github.com/ory/dockertest v3.3.5+incompatible
@@ -30,12 +28,12 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0
 	go.uber.org/zap v1.25.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.58.0
 	google.golang.org/protobuf v1.31.0
 )
 
 require (
-	cloud.google.com/go/compute v1.21.0 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
