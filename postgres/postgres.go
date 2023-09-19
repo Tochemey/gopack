@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/XSAM/otelsql"
-	"github.com/georgysavva/scany/sqlscan"
+	"github.com/georgysavva/scany/v2/sqlscan"
 	_ "github.com/lib/pq" //nolint
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
