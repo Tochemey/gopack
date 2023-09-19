@@ -6,6 +6,7 @@ require (
 	github.com/XSAM/otelsql v0.25.0
 	github.com/felixge/httpsnoop v1.0.3
 	github.com/georgysavva/scany v1.2.1
+	github.com/georgysavva/scany/v2 v2.0.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-co-op/gocron v1.34.0
 	github.com/google/uuid v1.3.1
