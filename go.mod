@@ -5,10 +5,9 @@ go 1.20
 require (
 	github.com/XSAM/otelsql v0.27.0
 	github.com/felixge/httpsnoop v1.0.4
-	github.com/georgysavva/scany/v2 v2.0.0
+	github.com/georgysavva/scany/v2 v2.1.0
 	github.com/go-chi/chi/v5 v5.0.11
-	github.com/go-co-op/gocron/v2 v2.1.2
-	github.com/go-co-op/gocron/v2 v2.1.2
+	github.com/go-co-op/gocron v1.37.0
 	github.com/google/uuid v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -67,7 +66,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.18.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
