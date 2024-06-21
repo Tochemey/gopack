@@ -5,8 +5,8 @@ go 1.21
 require (
 	github.com/XSAM/otelsql v0.29.0
 	github.com/felixge/httpsnoop v1.0.4
-	github.com/georgysavva/scany/v2 v2.1.0
-	github.com/go-chi/chi/v5 v5.0.12
+	github.com/georgysavva/scany/v2 v2.1.3
+	github.com/go-chi/chi/v5 v5.0.14
 	github.com/go-co-op/gocron v1.37.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1
