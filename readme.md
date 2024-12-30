@@ -27,6 +27,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [Request ID](./requestid) - contains request ID injection with appropriate interceptors and handlers.
 - [Validation](./validation) - contains a simple validation library.
 - [Errors Chain](./errorschain) - contains an simple errors chain library.
+- [Future](./future) - contains a simple Future/Promise kind of library.
 
 ### Note
 
