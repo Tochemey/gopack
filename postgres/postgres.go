@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022-2023 Tochemey
+ * Copyright (c) 2022-2024 Arsene Tochemey Gandote
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,7 @@ type postgres struct {
 var _ Postgres = (*postgres)(nil)
 
 const postgresDriver = "postgres"
-const instrumentationName = "ego.events_store"
+const instrumentationName = "github.com.tochemey.gopack.postgres"
 
 // New returns a store connecting to the given Postgres database.
 func New(config *Config) Postgres {

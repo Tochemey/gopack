@@ -1,6 +1,6 @@
 # https://docs.codecov.com/docs/codecov-yaml
-  coverage:
-    status:
-      patch: off
-  ignore:
-    - "test"
+coverage:
+  status:
+    patch: off
+ignore:
+  - "test"

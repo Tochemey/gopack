@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022-2023 Tochemey
+ * Copyright (c) 2022-2024 Arsene Tochemey Gandote
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,11 +30,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	testpb "github.com/tochemey/gopack/test/data/test/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+
+	testpb "github.com/tochemey/gopack/test/data/test/v1"
 )
 
 type mockAuthorizedLimiter struct{}

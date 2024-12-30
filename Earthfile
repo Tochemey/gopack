@@ -1,8 +1,6 @@
-VERSION 0.7
-PROJECT tochemey/goakt
+VERSION 0.8
 
-
-FROM tochemey/docker-go:1.21.0-1.0.0
+FROM tochemey/docker-go:1.23.4-5.1.0
 
 pbs:
     BUILD +protogen

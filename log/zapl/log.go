@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022-2023 Tochemey
+ * Copyright (c) 2022-2024 Arsene Tochemey Gandote
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,11 +30,12 @@ import (
 	"io"
 	"os"
 
-	"github.com/tochemey/gopack/log"
-	"github.com/tochemey/gopack/requestid"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/tochemey/gopack/log"
+	"github.com/tochemey/gopack/requestid"
 )
 
 // DefaultLogger represents the default Log to use

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022-2023 Tochemey
+ * Copyright (c) 2022-2024 Arsene Tochemey Gandote
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,9 +28,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/tochemey/gopack/requestid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/tochemey/gopack/requestid"
 )
 
 // NewRequestIDUnaryServerInterceptor creates a new request ID interceptor.

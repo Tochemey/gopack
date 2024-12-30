@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022-2023 Tochemey
+ * Copyright (c) 2022-2024 Arsene Tochemey Gandote
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,12 +29,15 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	grpcPrometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"google.golang.org/grpc"
+
+	"github.com/tochemey/gopack/errorschain"
 	"github.com/tochemey/gopack/otel/metric"
 	"github.com/tochemey/gopack/otel/trace"
-	"google.golang.org/grpc"
 )
 
 // ShutdownHook is used to perform some cleaning before stopping
@@ -130,18 +133,37 @@ func (s *grpcServer) Stop(ctx context.Context) error {
 // AwaitTermination makes the program wait for the signal termination
 // Valid signal termination (SIGINT, SIGTERM). This function should succeed Start.
 func (s *grpcServer) AwaitTermination(ctx context.Context) {
-	interruptSignal := make(chan os.Signal, 1)
-	signal.Notify(interruptSignal, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	<-interruptSignal
-	if err := s.cleanup(ctx); err != nil {
-		panic(err)
-	}
-
-	if s.shutdownHook != nil {
-		err := s.shutdownHook(ctx)
-		if err != nil {
+	// wait for interruption/termination
+	notifier := make(chan os.Signal, 1)
+	done := make(chan struct{}, 1)
+	signal.Notify(notifier, syscall.SIGINT, syscall.SIGTERM)
+	// wait for a shutdown signal, and then shutdown
+	go func() {
+		<-notifier
+		if err := errorschain.
+			New(errorschain.ReturnFirst()).
+			AddError(s.cleanup(ctx)).
+			AddError(s.shutdownHook(ctx)).
+			Error(); err != nil {
 			panic(err)
 		}
+
+		signal.Stop(notifier)
+		done <- struct{}{}
+	}()
+	<-done
+	pid := os.Getpid()
+	// make sure if it is unix init process to exit
+	if pid == 1 {
+		os.Exit(0)
+	}
+
+	process, _ := os.FindProcess(pid)
+	switch {
+	case runtime.GOOS == "windows":
+		_ = process.Kill()
+	default:
+		_ = process.Signal(syscall.SIGTERM)
 	}
 }
 
