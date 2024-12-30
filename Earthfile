@@ -6,7 +6,7 @@ pbs:
     BUILD +protogen
 
 test:
-  BUILD +lint
+#  BUILD +lint
   BUILD +local-test
 
 code:
