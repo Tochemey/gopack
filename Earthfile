@@ -48,7 +48,7 @@ local-test:
 protogen:
     # copy the proto files to generate
     COPY --dir protos/ ./
-    COPY buf.work.yaml buf.gen.yaml ./
+    COPY buf.yaml buf.gen.yaml ./
 
     # generate the pbs
     RUN buf generate \
