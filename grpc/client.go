@@ -27,7 +27,6 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -108,18 +107,9 @@ func (b *ClientBuilder) WithStreamInterceptors(interceptors ...grpc.StreamClient
 	return b
 }
 
-// WithClientTransportCredentials builds transport credentials for a gRPC client using the given properties.
-func (b *ClientBuilder) WithClientTransportCredentials(insecureSkipVerify bool, certPool *x509.CertPool) *ClientBuilder {
-	var tlsConf tls.Config
-
-	if insecureSkipVerify {
-		tlsConf.InsecureSkipVerify = true // nolint
-		b.transportCredentials = credentials.NewTLS(&tlsConf)
-		return b
-	}
-
-	tlsConf.RootCAs = certPool
-	b.transportCredentials = credentials.NewTLS(&tlsConf)
+// WithClientTLS sets the client TLS configuration
+func (b *ClientBuilder) WithClientTLS(config *tls.Config) *ClientBuilder {
+	b.transportCredentials = credentials.NewTLS(config)
 	return b
 }
 
@@ -142,12 +132,11 @@ func (b *ClientBuilder) WithDefaultStreamInterceptors() *ClientBuilder {
 }
 
 // ClientConn returns the client connection to the server
-func (b *ClientBuilder) ClientConn(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+func (b *ClientBuilder) ClientConn(addr string) (*grpc.ClientConn, error) {
 	if addr == "" {
 		return nil, fmt.Errorf("target connection parameter missing. address = %s", addr)
 	}
-	cc, err := grpc.DialContext(ctx, addr, b.options...)
-
+	cc, err := grpc.NewClient(addr, b.options...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to client. address = %s. error = %+v", addr, err)
 	}
@@ -155,21 +144,20 @@ func (b *ClientBuilder) ClientConn(ctx context.Context, addr string) (*grpc.Clie
 }
 
 // TLSClientConn returns client connection to the server
-func (b *ClientBuilder) TLSClientConn(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+func (b *ClientBuilder) TLSClientConn(addr string) (*grpc.ClientConn, error) {
 	b.options = append(b.options, grpc.WithTransportCredentials(b.transportCredentials))
-	cc, err := grpc.DialContext(
-		ctx,
-		addr,
-		b.options...,
-	)
+	if addr == "" {
+		return nil, fmt.Errorf("target connection parameter missing. address = %s", addr)
+	}
+	cc, err := grpc.NewClient(addr, b.options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tls conn. Unable to connect to client. address = %s: %w", addr, err)
 	}
 	return cc, nil
 }
 
-// GetClientConn return a grpc client connection
-func GetClientConn(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+// DefaultClientConn return a grpc client connection
+func DefaultClientConn(addr string) (*grpc.ClientConn, error) {
 	// create the client builder
 	clientBuilder := NewClientBuilder().
 		WithDefaultUnaryInterceptors().
@@ -180,7 +168,7 @@ func GetClientConn(ctx context.Context, addr string) (*grpc.ClientConn, error) {
 			PermitWithoutStream: true,
 		})
 	// get the gRPC client connection
-	conn, err := clientBuilder.ClientConn(ctx, addr)
+	conn, err := clientBuilder.ClientConn(addr)
 	// handle the connection error
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create grpc service client")
