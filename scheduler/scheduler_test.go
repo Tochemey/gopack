@@ -118,7 +118,7 @@ func (s *schedulerTestSuite) TestStop() {
 		err := scheduler.Stop(ctx)
 		s.Assert().NoError(err)
 	})
-	s.Run("with scheduler started and stopped then an added job should not start", func() {
+	s.Run("with scheduler started and stopped then an added job should error", func() {
 		var err error
 		var scheduler Scheduler
 		wg := &sync.WaitGroup{}
@@ -139,8 +139,8 @@ func (s *schedulerTestSuite) TestStop() {
 		s.Assert().NoError(err)
 		// add a job
 		job := &testJob{wg: wg, id: "Job-x"}
-		err = scheduler.AddJob(ctx, expr, job)
-		s.Assert().NoError(err)
+		err = scheduler.Schedule(ctx, expr, job)
+		s.Assert().Error(err)
 
 		select {
 		case <-time.After(oneSecond):
@@ -161,21 +161,21 @@ func (s *schedulerTestSuite) TestStop() {
 		scheduler = NewJobsScheduler()
 		s.Assert().NotNil(scheduler)
 
-		// add a fast job before start
-		job := &fastJob{id: "fastJob-X"}
-		err = scheduler.AddJob(ctx, expr, job)
-		s.Assert().NoError(err)
-
 		// start the scheduler
 		scheduler.Start(ctx)
 
+		// add a fast job before start
+		job := &fastJob{id: "fastJob-X"}
+		err = scheduler.Schedule(ctx, expr, job)
+		s.Assert().NoError(err)
+
 		// add some jobs
 		slowJob := &testLongRunningJob{id: "slowJob"}
-		err = scheduler.AddJob(ctx, expr, slowJob)
+		err = scheduler.Schedule(ctx, expr, slowJob)
 		s.Assert().NoError(err)
 
 		anotherFastJob := &fastJob{"fastJob-Y"}
-		err = scheduler.AddJob(ctx, expr, anotherFastJob)
+		err = scheduler.Schedule(ctx, expr, anotherFastJob)
 		s.Assert().NoError(err)
 		// sleep for second
 		time.Sleep(time.Second)
@@ -186,8 +186,8 @@ func (s *schedulerTestSuite) TestStop() {
 	})
 }
 
-func (s *schedulerTestSuite) TestAddJob() {
-	s.Run("with job added before scheduler start and expect job to run", func() {
+func (s *schedulerTestSuite) TestScheduleJob() {
+	s.Run("with job scheduled", func() {
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		// create the text context
@@ -197,24 +197,22 @@ func (s *schedulerTestSuite) TestAddJob() {
 		// create a new instance of Scheduler
 		scheduler := NewJobsScheduler()
 		s.Assert().NotNil(scheduler)
-		// add a job
-		job := &testJob{wg: wg, id: "Job-X"}
-		err := scheduler.AddJob(ctx, expr, job)
-		s.Assert().NoError(err)
 
 		// start the scheduler
 		scheduler.Start(ctx)
 
-		// stop the scheduler
-		defer func(scheduler Scheduler, ctx context.Context) {
-			_ = scheduler.Stop(ctx)
-		}(scheduler, ctx)
+		// add a job
+		job := &testJob{wg: wg, id: "Job-X"}
+		err := scheduler.Schedule(ctx, expr, job)
+		s.Assert().NoError(err)
 
 		select {
 		case <-time.After(oneSecond):
 			s.T().Fatal("expected job runs")
 		case <-wait(wg):
 		}
+
+		s.Assert().NoError(scheduler.Stop(ctx))
 	})
 	s.Run("with duplicate job added and expect only the first job to run", func() {
 		wg := &sync.WaitGroup{}
@@ -228,78 +226,23 @@ func (s *schedulerTestSuite) TestAddJob() {
 		scheduler := NewJobsScheduler()
 		s.Assert().NotNil(scheduler)
 
+		// start the scheduler
+		scheduler.Start(ctx)
+
 		// add a jobs
 		job := &testJob{id: "Job-X", wg: wg}
-		err := scheduler.AddJob(ctx, expr, job)
+		err := scheduler.Schedule(ctx, expr, job)
 		s.Assert().NoError(err)
-		err = scheduler.AddJob(ctx, expr, job)
+		err = scheduler.Schedule(ctx, expr, job)
 		s.Assert().Error(err)
-
-		// start the scheduler
-		scheduler.Start(ctx)
-		// stop the scheduler
-		defer func(scheduler Scheduler, ctx context.Context) {
-			_ = scheduler.Stop(ctx)
-		}(scheduler, ctx)
 
 		select {
 		case <-time.After(oneSecond):
 			s.T().Fatal("expected job runs")
 		case <-wait(wg):
 		}
-	})
-	s.Run("with job added after scheduler already started and expect job to run", func() {
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
 
-		// create the text context
-		ctx := context.TODO()
-		// set cron expression and grace period
-		const expr = "* * * * * ?"
-
-		// create a new instance of Scheduler
-		scheduler := NewJobsScheduler()
-		s.Assert().NotNil(scheduler)
-
-		// start the scheduler
-		scheduler.Start(ctx)
-		// stop the scheduler
-		defer func(scheduler Scheduler, ctx context.Context) {
-			_ = scheduler.Stop(ctx)
-		}(scheduler, ctx)
-
-		// add a job
-		job := &testJob{wg: wg, id: "Job-X"}
-		err := scheduler.AddJob(ctx, expr, job)
-		s.Assert().NoError(err)
-
-		select {
-		case <-time.After(oneSecond):
-			s.T().Fatal("expected job runs")
-		case <-wait(wg):
-		}
-	})
-	s.Run("with invalid cron expression", func() {
-		// create the text context
-		ctx := context.TODO()
-		// set cron expression and grace period
-		const expr = "* * * * * * ?"
-
-		// create a new instance of Scheduler
-		scheduler := NewJobsScheduler()
-		s.Assert().NotNil(scheduler)
-		// add a job
-		job := &testLongRunningJob{"Job-X"}
-		err := scheduler.AddJob(ctx, expr, job)
-		s.Assert().Error(err)
-		s.Assert().EqualError(err, "expected 5 to 6 fields, found 7: [* * * * * * ?]")
-
-		// start the scheduler
-		scheduler.Start(ctx)
-		// stop the scheduler
-		defer func(scheduler Scheduler, ctx context.Context) {
-			_ = scheduler.Stop(ctx)
-		}(scheduler, ctx)
+		s.Assert().NoError(scheduler.Stop(ctx))
 	})
 }
 
