@@ -21,8 +21,6 @@ require (
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0
 	github.com/travisjeffery/go-dynaport v1.0.0
-	github.com/twpayne/go-geos v0.20.0
-	github.com/twpayne/pgx-geos v0.0.4
 	go.opentelemetry.io/contrib v1.34.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.59.0
 	go.opentelemetry.io/otel v1.34.0
