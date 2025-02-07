@@ -13,7 +13,6 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/pkg/errors v0.9.1
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/reugn/go-quartz v0.14.0
 	github.com/sashabaranov/go-openai v1.37.0
@@ -79,6 +78,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/client_golang v1.20.5 // indirect

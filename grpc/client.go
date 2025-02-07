@@ -30,7 +30,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -171,7 +170,7 @@ func DefaultClientConn(addr string) (*grpc.ClientConn, error) {
 	conn, err := clientBuilder.ClientConn(addr)
 	// handle the connection error
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create grpc service client")
+		return nil, fmt.Errorf("failed to connect to client. address = %s: %w", addr, err)
 	}
 	// return the client connection created
 	return conn, nil
