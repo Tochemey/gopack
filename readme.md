@@ -3,7 +3,7 @@
 [![build](https://img.shields.io/github/actions/workflow/status/Tochemey/gopack/build.yml?branch=main)](https://github.com/Tochemey/gopack/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/Tochemey/gopack/branch/main/graph/badge.svg?token=LJO3LHe1Ox)](https://codecov.io/gh/Tochemey/gopack)
 
-GoPack is kind of your Swiss Army Knife for golang microservices.
+GoPack is kind of your Swiss Army Knife for golang services.
 The project adheres to [Semantic Versioning](https://semver.org)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
