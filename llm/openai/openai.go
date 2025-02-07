@@ -29,7 +29,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	openai "github.com/sashabaranov/go-openai"
 	"golang.org/x/time/rate"
 )
@@ -272,12 +272,11 @@ func (x api) Query(ctx context.Context, requests []*Request, responseType Respon
 		}
 	}
 
-	var resp openai.ChatCompletionResponse
 	// wrap in a function so we can backoff
-	operation := func() error {
+	operation := func() (*openai.ChatCompletionResponse, error) {
 		ctx, cancel := context.WithTimeout(ctx, x.config.Timeout)
 		var err error
-		resp, err = x.remote.CreateChatCompletion(ctx, req)
+		resp, err := x.remote.CreateChatCompletion(ctx, req)
 		defer cancel()
 		if err != nil {
 			e := &openai.APIError{}
@@ -286,27 +285,29 @@ func (x api) Query(ctx context.Context, requests []*Request, responseType Respon
 				switch e.HTTPStatusCode {
 				case http.StatusUnauthorized:
 					// invalid auth or key (do not retry)
-					return &backoff.PermanentError{Err: err}
+					return nil, &backoff.PermanentError{Err: err}
 				case http.StatusTooManyRequests:
 					// rate limiting or engine overload (wait and retry)
-					return err
+					return nil, err
 				case http.StatusInternalServerError:
 					// openai server error (retry)
-					return err
+					return nil, err
 				default:
 					// return &backoff.PermanentError{Err: err}
-					return err
+					return nil, err
 				}
 			default:
-				return err
+				return nil, err
 			}
 		}
-		return nil
+		return &resp, nil
 	}
 
 	// implements backoff
-	opt := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(x.config.MaxRetries))
-	if err := backoff.Retry(operation, opt); err != nil {
+	resp, err := backoff.Retry(ctx, operation,
+		backoff.WithMaxTries(uint(x.config.MaxRetries)),
+		backoff.WithBackOff(backoff.NewExponentialBackOff()))
+	if err != nil {
 		return nil, err
 	}
 
@@ -399,12 +400,11 @@ func (x api) VisionQuery(ctx context.Context, requests ...*VisionRequest) (respo
 		Seed:      &seed,
 	}
 
-	var resp openai.ChatCompletionResponse
 	// wrap in a function so we can backoff
-	operation := func() error {
+	operation := func() (*openai.ChatCompletionResponse, error) {
 		ctx, cancel := context.WithTimeout(ctx, x.config.Timeout)
 		var err error
-		resp, err = x.remote.CreateChatCompletion(ctx, req)
+		resp, err := x.remote.CreateChatCompletion(ctx, req)
 		cancel()
 		if err != nil {
 			e := &openai.APIError{}
@@ -412,29 +412,30 @@ func (x api) VisionQuery(ctx context.Context, requests ...*VisionRequest) (respo
 				switch e.HTTPStatusCode {
 				case http.StatusUnauthorized:
 					// invalid auth or key (do not retry)
-					return &backoff.PermanentError{Err: err}
+					return nil, &backoff.PermanentError{Err: err}
 				case http.StatusTooManyRequests:
 					// rate limiting or engine overload (wait and retry)
-					return err
+					return nil, err
 				case http.StatusInternalServerError:
 					// openai server error (retry)
-					return err
+					return nil, err
 				default:
 					// return &backoff.PermanentError{Err: err}
-					return err
+					return nil, err
 				}
 			} else {
 				// it means this is not an openai error
 				// return &backoff.PermanentError{Err: err}
-				return err
+				return nil, err
 			}
 		}
-		return nil
+		return &resp, nil
 	}
 
-	// implements backoff
-	opt := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(x.config.MaxRetries))
-	if err := backoff.Retry(operation, opt); err != nil {
+	resp, err := backoff.Retry(ctx, operation,
+		backoff.WithMaxTries(uint(x.config.MaxRetries)),
+		backoff.WithBackOff(backoff.NewExponentialBackOff()))
+	if err != nil {
 		return nil, err
 	}
 
