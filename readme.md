@@ -28,6 +28,11 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [Validation](./validation) - contains a simple validation library.
 - [Errors Chain](./errorschain) - contains an simple errors chain library.
 - [Future](./future) - contains a simple Future/Promise kind of library.
+- [GCP PubSub](./gcp/pubsub) - contains wrappers around the Google PubSub api to:
+  - [Tooling](./gcp/pubsub/tooling.go) - create, list topics
+  - [Publisher](./gcp/pubsub/publisher.go) - publish messages to [GCP PubSub](https://cloud.google.com/pubsub/docs)
+  - [Subscriber](./gcp/pubsub/subscriber.go) - consume messages from [GCP PubSub](https://cloud.google.com/pubsub/docs)
+  - [Emulator](./gcp/pubsub/emulator.go) - contains a [GCP PubSub](https://cloud.google.com/pubsub/docs) Emulator.
 
 ### Note
 
