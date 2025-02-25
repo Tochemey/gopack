@@ -27,7 +27,10 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [Request ID](./requestid) - contains request ID injection with appropriate interceptors and handlers.
 - [Validation](./validation) - contains a simple validation library.
 - [Errors Chain](./errorschain) - contains an simple errors chain library.
-- [Future](./future) - contains a simple Future/Promise kind of library.
+- [Stream](./stream) - contains a simple in-memory pubsub
+- [Ticker](./ticker) - contains an enhanced golang ticker
+- [Timer Pool](./timerpool) - contains a timer pool for memory efficiency
+- [Collection](./collection) - contains some thread-safe collections like map, slice and queue
 - [GCP PubSub](./gcp/pubsub) - contains wrappers around the Google PubSub api to:
   - [Tooling](./gcp/pubsub/tooling.go) - create, list topics
   - [Publisher](./gcp/pubsub/publisher.go) - publish messages to [GCP PubSub](https://cloud.google.com/pubsub/docs)
