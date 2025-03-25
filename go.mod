@@ -7,17 +7,17 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/felixge/httpsnoop v1.0.4
-	github.com/georgysavva/scany/v2 v2.1.3
+	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/invopop/jsonschema v0.13.0
-	github.com/jackc/pgx/v5 v5.7.2
+	github.com/jackc/pgx/v5 v5.7.4
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/reugn/go-quartz v0.14.0
-	github.com/sashabaranov/go-openai v1.38.0
+	github.com/sashabaranov/go-openai v1.38.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0
@@ -38,7 +38,7 @@ require (
 	google.golang.org/api v0.225.0
 	google.golang.org/genproto v0.0.0-20250313182123-33a14cd5fa76
 	google.golang.org/grpc v1.71.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 )
 
 require (
