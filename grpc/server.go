@@ -142,8 +142,8 @@ func (s *grpcServer) AwaitTermination(ctx context.Context) {
 		<-notifier
 		if err := errorschain.
 			New(errorschain.ReturnFirst()).
-			AddError(s.cleanup(ctx)).
-			AddError(s.shutdownHook(ctx)).
+			AddErrorFn(func() error { return s.cleanup(ctx) }).
+			AddErrorFn(func() error { return s.shutdownHook(ctx) }).
 			Error(); err != nil {
 			panic(err)
 		}
