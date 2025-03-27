@@ -15,8 +15,8 @@ require (
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/reugn/go-quartz v0.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/testcontainers/testcontainers-go v0.35.0
-	github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0
+	github.com/testcontainers/testcontainers-go v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.36.0
 	github.com/travisjeffery/go-dynaport v1.0.0
 	go.opentelemetry.io/contrib v1.35.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0
