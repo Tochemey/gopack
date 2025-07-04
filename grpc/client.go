@@ -117,8 +117,7 @@ func (b *ClientBuilder) WithDefaultUnaryInterceptors() *ClientBuilder {
 	return b.WithUnaryInterceptors(
 		NewRequestIDUnaryClientInterceptor(),
 		NewClientMetricUnaryInterceptor(),
-		NewTracingClientUnaryInterceptor(),
-	)
+	).WithOptions(grpc.WithStatsHandler(NewClientTracingHandler()))
 }
 
 // WithDefaultStreamInterceptors sets the default stream interceptors for the grpc server
@@ -126,8 +125,7 @@ func (b *ClientBuilder) WithDefaultStreamInterceptors() *ClientBuilder {
 	return b.WithStreamInterceptors(
 		NewRequestIDStreamClientInterceptor(),
 		NewClientMetricStreamInterceptor(),
-		NewTracingClientStreamInterceptor(),
-	)
+	).WithOptions(grpc.WithStatsHandler(NewClientTracingHandler()))
 }
 
 // ClientConn returns the client connection to the server

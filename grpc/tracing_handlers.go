@@ -26,29 +26,17 @@ package grpc
 
 import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"google.golang.org/grpc"
+	"google.golang.org/grpc/stats"
 )
 
-// NewTracingUnaryInterceptor helps gather traces and metrics from any grpc unary server
+// NewServerTracingHandler helps gather traces and metrics from any grpc unary server
 // request. Make sure to start the TracerProvider to connect to an OLTP connector
-func NewTracingUnaryInterceptor(opts ...otelgrpc.Option) grpc.UnaryServerInterceptor {
-	return otelgrpc.UnaryServerInterceptor(opts...)
+func NewServerTracingHandler(opts ...otelgrpc.Option) stats.Handler {
+	return otelgrpc.NewServerHandler(opts...)
 }
 
-// NewTracingStreamInterceptor helps gather traces and metrics from any grpc stream server
+// NewClientTracingHandler helps gather traces and metrics from any grpc stream client
 // request. Make sure to start the TracerProvider to connect to an OLTP connector
-func NewTracingStreamInterceptor(opts ...otelgrpc.Option) grpc.StreamServerInterceptor {
-	return otelgrpc.StreamServerInterceptor(opts...)
-}
-
-// NewTracingClientUnaryInterceptor helps gather traces and metrics from any grpc unary client
-// request. Make sure to start the TracerProvider to connect to an OLTP connector
-func NewTracingClientUnaryInterceptor(opts ...otelgrpc.Option) grpc.UnaryClientInterceptor {
-	return otelgrpc.UnaryClientInterceptor(opts...)
-}
-
-// NewTracingClientStreamInterceptor helps gather traces and metrics from any grpc stream client
-// request. Make sure to start the TracerProvider to connect to an OLTP connector
-func NewTracingClientStreamInterceptor(opts ...otelgrpc.Option) grpc.StreamClientInterceptor {
-	return otelgrpc.StreamClientInterceptor(opts...)
+func NewClientTracingHandler(opts ...otelgrpc.Option) stats.Handler {
+	return otelgrpc.NewClientHandler(opts...)
 }

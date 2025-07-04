@@ -57,13 +57,14 @@ const (
 )
 
 var (
-	errMissingTraceURL         = errors.New("trace URL is not defined")
-	errMissingServiceName      = errors.New("service name is not defined")
-	errMsgCannotUseSameBuilder = errors.New("cannot use the same builder to build more than once")
+	ErrMissingTraceURL         = errors.New("trace URL is not defined")
+	ErrMissingServiceName      = errors.New("service name is not defined")
+	ErrMsgCannotUseSameBuilder = errors.New("cannot use the same builder to build more than once")
 )
 
 // ServerBuilder helps build a grpc grpcServer
 type ServerBuilder struct {
+	sync.Mutex
 	options           []grpc.ServerOption
 	services          []serviceRegistry
 	enableReflection  bool
@@ -78,8 +79,6 @@ type ServerBuilder struct {
 
 	shutdownHook ShutdownHook
 	isBuilt      bool
-
-	rwMutex *sync.RWMutex
 }
 
 // NewServerBuilder creates an instance of ServerBuilder
@@ -87,7 +86,6 @@ func NewServerBuilder() *ServerBuilder {
 	return &ServerBuilder{
 		grpcPort: defaultGrpcPort,
 		isBuilt:  false,
-		rwMutex:  &sync.RWMutex{},
 	}
 }
 
@@ -221,29 +219,28 @@ func (sb *ServerBuilder) WithTLSCert(cert *tls.Certificate) *ServerBuilder {
 func (sb *ServerBuilder) WithDefaultUnaryInterceptors() *ServerBuilder {
 	return sb.WithUnaryInterceptors(
 		NewRequestIDUnaryServerInterceptor(),
-		NewTracingUnaryInterceptor(),
 		NewMetricUnaryInterceptor(),
 		NewRecoveryUnaryInterceptor(),
-	)
+	).WithOption(grpc.StatsHandler(NewServerTracingHandler()))
 }
 
 // WithDefaultStreamInterceptors sets the default stream interceptors for the grpc grpcServer
 func (sb *ServerBuilder) WithDefaultStreamInterceptors() *ServerBuilder {
 	return sb.WithStreamInterceptors(
 		NewRequestIDStreamServerInterceptor(),
-		NewTracingStreamInterceptor(),
 		NewMetricStreamInterceptor(),
 		NewRecoveryStreamInterceptor(),
-	)
+	).WithOption(grpc.StatsHandler(NewServerTracingHandler()))
 }
 
 // Build is responsible for building a GRPC grpcServer
 func (sb *ServerBuilder) Build() (Server, error) {
 	// check whether the builder has already been used
-	sb.rwMutex.Lock()
-	defer sb.rwMutex.Unlock()
+	sb.Lock()
+	defer sb.Unlock()
+
 	if sb.isBuilt {
-		return nil, errMsgCannotUseSameBuilder
+		return nil, ErrMsgCannotUseSameBuilder
 	}
 
 	// create the grpc server
@@ -275,11 +272,11 @@ func (sb *ServerBuilder) Build() (Server, error) {
 	// register tracing if enabled
 	if sb.tracingEnabled {
 		if sb.traceURL == "" {
-			return nil, errMissingTraceURL
+			return nil, ErrMissingTraceURL
 		}
 
 		if sb.serviceName == "" {
-			return nil, errMissingServiceName
+			return nil, ErrMissingServiceName
 		}
 		grpcServer.traceProvider = trace.NewProvider(sb.traceURL, sb.serviceName)
 	}
