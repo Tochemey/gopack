@@ -32,7 +32,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/time v0.12.0
 	google.golang.org/api v0.240.0
-	google.golang.org/genproto v0.0.0-20250603155806-513f23925822
+	google.golang.org/genproto f173205681a0
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 )
