@@ -25,7 +25,8 @@
 package pubsub
 
 import (
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 
 	"github.com/tochemey/gopack/log"
 	"github.com/tochemey/gopack/validation"
@@ -34,9 +35,10 @@ import (
 // SubscriberConfig holds the subscriber settings
 type SubscriberConfig struct {
 	SubscriptionID     string
-	SubscriptionConfig *pubsub.SubscriptionConfig
+	SubscriptionConfig *pubsubpb.Subscription
 	ReceiveSettings    *pubsub.ReceiveSettings
 	Logger             log.Logger
+	EnableTracing      bool
 }
 
 // Validate validates the config
@@ -44,7 +46,7 @@ func (c *SubscriberConfig) Validate() error {
 	return validation.New(validation.FailFast()).
 		AddAssertion(c.SubscriptionConfig != nil, "subscription config is not set").
 		AddAssertion(c.Logger != nil, "subscription logger is not set").
-		AddAssertion(c.SubscriptionConfig != nil && c.SubscriptionConfig.Topic != nil, "subscription topic is not set").
+		AddValidator(validation.NewEmptyStringValidator("Topic", c.SubscriptionConfig.Topic)).
 		AddValidator(validation.NewEmptyStringValidator("SubscriptionID", c.SubscriptionID)).
 		Validate()
 }

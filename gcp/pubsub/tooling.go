@@ -28,19 +28,19 @@ import (
 	"context"
 	"errors"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/"
 	"google.golang.org/api/iterator"
 )
 
 // Tooling helps perform some management tasks via
 // the PubSub client
 type Tooling struct {
-	remote *pubsub.Client
+	client *pubsub.Client
 }
 
 // NewTooling creates an instance of Tooling
 func NewTooling(remote *pubsub.Client) *Tooling {
-	return &Tooling{remote: remote}
+	return &Tooling{client: remote}
 }
 
 // CreateTopic creates a GCP Pub/Sub topic
@@ -51,7 +51,7 @@ func NewTooling(remote *pubsub.Client) *Tooling {
 // see: https://cloud.google.com/pubsub/docs/admin#resource_names.
 func (c Tooling) CreateTopic(ctx context.Context, topicName string) (*pubsub.Topic, error) {
 	// make the call to GCP
-	topic, err := c.remote.CreateTopic(ctx, topicName)
+	topic, err := c.client.CreateTopic(ctx, topicName)
 	// handle the eventual error
 	if err != nil {
 		// return the result
@@ -64,7 +64,7 @@ func (c Tooling) CreateTopic(ctx context.Context, topicName string) (*pubsub.Top
 // TODO figure out the way to perform the paginated requests
 func (c Tooling) ListTopics(ctx context.Context) ([]*pubsub.Topic, error) {
 	var topics []*pubsub.Topic
-	it := c.remote.Topics(ctx)
+	it := c.client.Topics(ctx)
 	for {
 		topic, err := it.Next()
 		if errors.Is(err, iterator.Done) {

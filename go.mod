@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	cloud.google.com/go/pubsub v1.50.0
+	cloud.google.com/go/pubsub/v2 v2.0.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/georgysavva/scany/v2 v2.1.4
@@ -38,7 +39,6 @@ require (
 )
 
 require (
-	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect

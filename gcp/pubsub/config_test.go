@@ -30,8 +30,11 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/tochemey/gopack/log/zapl"
 )
@@ -42,30 +45,34 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 		emulator := NewEmulator()
 
 		// set the emulator env var
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		require.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
 
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
-		assert.NoError(t, err)
-		assert.NotNil(t, client)
+		require.NoError(t, err)
+		require.NotNil(t, client)
 
-		topic := client.Topic(topicName)
-		subscriptionConfig := &pubsub.SubscriptionConfig{
-			Topic: topic,
-			RetryPolicy: &pubsub.RetryPolicy{
-				MinimumBackoff: time.Second * 100,
-				MaximumBackoff: time.Second * 1000,
+		topic, err := client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+			Name: topicName,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, topic)
+
+		subscriptionConfig := &pubsubpb.Subscription{
+			Topic: topic.GetName(),
+			RetryPolicy: &pubsubpb.RetryPolicy{
+				MinimumBackoff: durationpb.New(time.Second * 100),
+				MaximumBackoff: durationpb.New(time.Second * 1000),
 			},
 		}
 
 		receiveSettings := &pubsub.ReceiveSettings{
-			MaxExtension:           1,
-			MaxExtensionPeriod:     time.Millisecond * 50,
-			MinExtensionPeriod:     time.Millisecond * 100,
-			MaxOutstandingMessages: 1,
-			MaxOutstandingBytes:    1048576, // 1mb
-			UseLegacyFlowControl:   false,
-			NumGoroutines:          1,
+			MaxExtension:               1,
+			MaxDurationPerAckExtension: time.Millisecond * 50,
+			MinDurationPerAckExtension: time.Millisecond * 100,
+			MaxOutstandingMessages:     1,
+			MaxOutstandingBytes:        1048576, // 1mb
+			NumGoroutines:              1,
 		}
 
 		subscriberConfig := &SubscriberConfig{
@@ -76,21 +83,20 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 		}
 
 		err = subscriberConfig.Validate()
-		assert.NoError(t, err)
-		assert.NoError(t, emulator.Cleanup())
-		assert.NoError(t, client.Close())
+		require.NoError(t, err)
+		require.NoError(t, emulator.Cleanup())
+		require.NoError(t, client.Close())
 		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("subscription config not set", func(t *testing.T) {
 		receiveCfg := &pubsub.ReceiveSettings{
-			MaxExtension:           1,
-			MaxExtensionPeriod:     time.Millisecond * 50,
-			MinExtensionPeriod:     time.Millisecond * 100,
-			MaxOutstandingMessages: 1,
-			MaxOutstandingBytes:    1048576, // 1mb
-			UseLegacyFlowControl:   false,
-			NumGoroutines:          1,
+			MaxExtension:               1,
+			MaxDurationPerAckExtension: time.Millisecond * 50,
+			MinDurationPerAckExtension: time.Millisecond * 100,
+			MaxOutstandingMessages:     1,
+			MaxOutstandingBytes:        1048576, // 1mb
+			NumGoroutines:              1,
 		}
 
 		subscriberConfig := &SubscriberConfig{
@@ -104,21 +110,20 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 		assert.EqualError(t, err, "subscription config is not set")
 	})
 	t.Run("topic not set", func(t *testing.T) {
-		subscriptionConfig := &pubsub.SubscriptionConfig{
-			RetryPolicy: &pubsub.RetryPolicy{
-				MinimumBackoff: time.Second * 100,
-				MaximumBackoff: time.Second * 1000,
+		subscriptionConfig := &pubsubpb.Subscription{
+			RetryPolicy: &pubsubpb.RetryPolicy{
+				MinimumBackoff: durationpb.New(time.Second * 100),
+				MaximumBackoff: durationpb.New(time.Second * 1000),
 			},
 		}
 
 		receiveSettings := &pubsub.ReceiveSettings{
-			MaxExtension:           1,
-			MaxExtensionPeriod:     time.Millisecond * 50,
-			MinExtensionPeriod:     time.Millisecond * 100,
-			MaxOutstandingMessages: 1,
-			MaxOutstandingBytes:    1048576, // 1mb
-			UseLegacyFlowControl:   false,
-			NumGoroutines:          1,
+			MaxExtension:               1,
+			MaxDurationPerAckExtension: time.Millisecond * 50,
+			MinDurationPerAckExtension: time.Millisecond * 100,
+			MaxOutstandingMessages:     1,
+			MaxOutstandingBytes:        1048576, // 1mb
+			NumGoroutines:              1,
 		}
 
 		subscriberConfig := &SubscriberConfig{
@@ -144,23 +149,27 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 
-		topic := client.Topic(topicName)
-		subscriptionConfig := &pubsub.SubscriptionConfig{
-			Topic: topic,
-			RetryPolicy: &pubsub.RetryPolicy{
-				MinimumBackoff: time.Second * 100,
-				MaximumBackoff: time.Second * 1000,
+		topic, err := client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+			Name: topicName,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, topic)
+
+		subscriptionConfig := &pubsubpb.Subscription{
+			Topic: topic.GetName(),
+			RetryPolicy: &pubsubpb.RetryPolicy{
+				MinimumBackoff: durationpb.New(time.Second * 100),
+				MaximumBackoff: durationpb.New(time.Second * 1000),
 			},
 		}
 
 		receiveSettings := &pubsub.ReceiveSettings{
-			MaxExtension:           1,
-			MaxExtensionPeriod:     time.Millisecond * 50,
-			MinExtensionPeriod:     time.Millisecond * 100,
-			MaxOutstandingMessages: 1,
-			MaxOutstandingBytes:    1048576, // 1mb
-			UseLegacyFlowControl:   false,
-			NumGoroutines:          1,
+			MaxExtension:               1,
+			MaxDurationPerAckExtension: time.Millisecond * 50,
+			MinDurationPerAckExtension: time.Millisecond * 100,
+			MaxOutstandingMessages:     1,
+			MaxOutstandingBytes:        1048576, // 1mb
+			NumGoroutines:              1,
 		}
 
 		subscriberConfig := &SubscriberConfig{

@@ -35,8 +35,9 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	pubpb "google.golang.org/genproto/googleapis/pubsub/v1"
 
 	"github.com/tochemey/gopack/log/zapl"
@@ -49,20 +50,20 @@ func TestNewSubscriberClient(t *testing.T) {
 		emulator := NewEmulator()
 
 		// set the emulator addr
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		require.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
 
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
-		assert.NoError(t, err)
-		assert.NotNil(t, client)
+		require.NoError(t, err)
+		require.NotNil(t, client)
 
 		// create an instance of the management suite
 		mgmt := NewTooling(client)
-		assert.NotNil(t, mgmt)
+		require.NotNil(t, mgmt)
 
 		// create the topic using the management API
 		_, err = mgmt.CreateTopic(ctx, topicName)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// create the topic to use
 		topic := client.Topic(topicName)
@@ -588,95 +589,5 @@ func TestConsume(t *testing.T) {
 		assert.NoError(t, client.Close())
 		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
 		assert.NoError(t, err)
-	})
-}
-
-func Test_subscriptionConfigToUpdate(t *testing.T) {
-	ackDeadline := time.Millisecond * 1
-	retentionDuration := time.Millisecond * 2
-	expirationPolicy := time.Millisecond * 3
-	deadLetterPolicy := &pubsub.DeadLetterPolicy{
-		DeadLetterTopic:     "some-topic",
-		MaxDeliveryAttempts: 1,
-	}
-	labels := map[string]string{"baz": "bar"}
-	retryPolicy := &pubsub.RetryPolicy{
-		MinimumBackoff: time.Millisecond * 4,
-		MaximumBackoff: time.Millisecond * 5,
-	}
-
-	t.Run("happy path", func(t *testing.T) {
-		pushConfig := &pubsub.PushConfig{
-			Endpoint:             "some-endpoint",
-			Attributes:           map[string]string{"foo": "bar"},
-			AuthenticationMethod: &pubsub.OIDCToken{},
-		}
-
-		bigQueryConfig := &pubsub.BigQueryConfig{
-			Table:             "some-table",
-			UseTopicSchema:    true,
-			WriteMetadata:     true,
-			DropUnknownFields: true,
-			State:             pubsub.BigQueryConfigActive,
-		}
-
-		input := &pubsub.SubscriptionConfig{
-			PushConfig:                    *pushConfig,
-			BigQueryConfig:                *bigQueryConfig,
-			AckDeadline:                   ackDeadline,
-			RetainAckedMessages:           true,
-			RetentionDuration:             retentionDuration,
-			ExpirationPolicy:              expirationPolicy,
-			Labels:                        labels,
-			DeadLetterPolicy:              deadLetterPolicy,
-			RetryPolicy:                   retryPolicy,
-			TopicMessageRetentionDuration: retentionDuration,
-		}
-
-		expected := pubsub.SubscriptionConfigToUpdate{
-			PushConfig:          pushConfig,
-			BigQueryConfig:      bigQueryConfig,
-			AckDeadline:         ackDeadline,
-			RetainAckedMessages: true,
-			RetentionDuration:   retentionDuration,
-			ExpirationPolicy:    expirationPolicy,
-			DeadLetterPolicy:    deadLetterPolicy,
-			Labels:              labels,
-			RetryPolicy:         retryPolicy,
-		}
-
-		actual := subscriptionConfigToUpdate(input)
-		assert.Equal(t, expected, actual)
-	})
-	t.Run("without push config or big query config", func(t *testing.T) {
-		pushConfig := &pubsub.PushConfig{}
-		bigQueryConfig := &pubsub.BigQueryConfig{}
-		input := &pubsub.SubscriptionConfig{
-			PushConfig:                    *pushConfig,
-			BigQueryConfig:                *bigQueryConfig,
-			AckDeadline:                   ackDeadline,
-			RetainAckedMessages:           true,
-			RetentionDuration:             retentionDuration,
-			ExpirationPolicy:              expirationPolicy,
-			Labels:                        labels,
-			DeadLetterPolicy:              deadLetterPolicy,
-			RetryPolicy:                   retryPolicy,
-			TopicMessageRetentionDuration: retentionDuration,
-		}
-
-		expected := pubsub.SubscriptionConfigToUpdate{
-			PushConfig:          nil,
-			BigQueryConfig:      nil,
-			AckDeadline:         ackDeadline,
-			RetainAckedMessages: true,
-			RetentionDuration:   retentionDuration,
-			ExpirationPolicy:    expirationPolicy,
-			DeadLetterPolicy:    deadLetterPolicy,
-			Labels:              labels,
-			RetryPolicy:         retryPolicy,
-		}
-
-		actual := subscriptionConfigToUpdate(input)
-		assert.Equal(t, expected, actual)
 	})
 }
