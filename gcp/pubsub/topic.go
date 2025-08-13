@@ -24,7 +24,11 @@
 
 package pubsub
 
-import "cloud.google.com/go/pubsub"
+import (
+	"fmt"
+
+	"cloud.google.com/go/pubsub/v2"
+)
 
 // Topic represents a PubSub topic
 type Topic struct {
@@ -43,4 +47,12 @@ type Topic struct {
 
 	// PublishSettings control the bundling of published messages.
 	PublishSettings *pubsub.PublishSettings
+}
+
+func TopicFullName(projectID, topicName string) string {
+	return fmt.Sprintf("projects/%s/topics/%s", projectID, topicName)
+}
+
+func SubscriptionFullName(projectID, subscriptionName string) string {
+	return fmt.Sprintf("projects/%s/subscriptions/%s", projectID, subscriptionName)
 }

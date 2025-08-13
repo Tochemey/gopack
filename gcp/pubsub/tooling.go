@@ -28,19 +28,20 @@ import (
 	"context"
 	"errors"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/api/iterator"
 )
 
 // Tooling helps perform some management tasks via
 // the PubSub client
 type Tooling struct {
-	remote *pubsub.Client
+	client *pubsub.Client
 }
 
 // NewTooling creates an instance of Tooling
 func NewTooling(remote *pubsub.Client) *Tooling {
-	return &Tooling{remote: remote}
+	return &Tooling{client: remote}
 }
 
 // CreateTopic creates a GCP Pub/Sub topic
@@ -49,12 +50,12 @@ func NewTooling(remote *pubsub.Client) *Tooling {
 // tildes (~), plus (+) or percent signs (%). It must be between 3 and 255
 // characters in length, and must not start with "goog". For more information,
 // see: https://cloud.google.com/pubsub/docs/admin#resource_names.
-func (c Tooling) CreateTopic(ctx context.Context, topicName string) (*pubsub.Topic, error) {
-	// make the call to GCP
-	topic, err := c.remote.CreateTopic(ctx, topicName)
-	// handle the eventual error
+func (c Tooling) CreateTopic(ctx context.Context, topicName string) (*pubsubpb.Topic, error) {
+	topic, err := c.client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+		Name: TopicFullName(c.client.Project(), topicName),
+	})
+
 	if err != nil {
-		// return the result
 		return nil, err
 	}
 	return topic, nil
@@ -62,9 +63,9 @@ func (c Tooling) CreateTopic(ctx context.Context, topicName string) (*pubsub.Top
 
 // ListTopics fetches the list all PubSub topics in a given GCP project
 // TODO figure out the way to perform the paginated requests
-func (c Tooling) ListTopics(ctx context.Context) ([]*pubsub.Topic, error) {
-	var topics []*pubsub.Topic
-	it := c.remote.Topics(ctx)
+func (c Tooling) ListTopics(ctx context.Context) ([]*pubsubpb.Topic, error) {
+	var topics []*pubsubpb.Topic
+	it := c.client.TopicAdminClient.ListTopics(ctx, &pubsubpb.ListTopicsRequest{})
 	for {
 		topic, err := it.Next()
 		if errors.Is(err, iterator.Done) {

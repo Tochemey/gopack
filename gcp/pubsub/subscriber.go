@@ -33,7 +33,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/tochemey/gopack/log"
 	"github.com/tochemey/gopack/log/zapl"
@@ -51,7 +56,7 @@ type SubscriptionHandler func(ctx context.Context, data []byte) error
 
 // Subscriber implements the Subscriber interface
 type Subscriber struct {
-	subscription *pubsub.Subscription
+	underlying *pubsub.Subscriber
 
 	// internal components
 	mutex sync.Mutex
@@ -64,101 +69,54 @@ type Subscriber struct {
 }
 
 // NewSubscriber creates an instance of Subscriber
-func NewSubscriber(ctx context.Context, remote *pubsub.Client, config *SubscriberConfig) (*Subscriber, error) {
-	// assert the subscription config
-	if config == nil {
+func NewSubscriber(ctx context.Context, client *pubsub.Client, cfg *SubscriberConfig) (*Subscriber, error) {
+	if cfg == nil {
 		return nil, errors.New("config is not set")
 	}
-	// validate the config
-	if err := config.Validate(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
-	// set up the topic
-	topic := remote.Topic(config.SubscriptionConfig.Topic.ID())
-	// check topic existence
-	exists, err := topic.Exists(ctx)
-	// handle error
+
+	// Ensure topic exists
+	if err := ensureTopic(ctx, client, cfg.SubscriptionConfig.Topic); err != nil {
+		return nil, err
+	}
+
+	// Apply defaults if not provided
+	applyDefaults(cfg)
+
+	// Ensure subscription exists (or update if it already exists)
+	subscription, err := ensureSubscription(ctx, client, cfg.SubscriptionConfig)
 	if err != nil {
-		// return the error
-		return nil, err
-	}
-	// check whether the topic exists or not
-	if !exists {
-		// create the error and return it
-		return nil, fmt.Errorf("topic %s does not exist", config.SubscriptionConfig.Topic.ID())
-	}
-
-	// set the subscription
-	subscription := remote.Subscription(config.SubscriptionID)
-	// check the existence of the subscription
-	exists, err = subscription.Exists(ctx)
-	// handle error
-	if err != nil {
-		// return the error
 		return nil, err
 	}
 
-	// check whether the retry policy is set and set a default one
-	if config.SubscriptionConfig.RetryPolicy == nil {
-		// https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions#retrypolicy
-		config.SubscriptionConfig.RetryPolicy = &pubsub.RetryPolicy{
-			MinimumBackoff: MinimumBackoff,
-			MaximumBackoff: MaximumBackoff,
-		}
-	}
-
-	// check whether the subscription exists or not
-	if !exists {
-		// create the subscription
-		subscription, err = remote.CreateSubscription(ctx, config.SubscriptionID, *config.SubscriptionConfig)
-		// handle the error
-		if err != nil {
-			// return the error
-			return nil, err
-		}
-	} else {
-		// update the existing subscription
-		_, err := subscription.Update(ctx, subscriptionConfigToUpdate(config.SubscriptionConfig))
-		// handle the error
-		if err != nil {
-			// return the error
-			return nil, err
-		}
-	}
-
-	// set the default receiveSettings
-	subscription.ReceiveSettings = pubsub.DefaultReceiveSettings
-	// override the default settings with the one provided if exists
-	if config.ReceiveSettings != nil {
-		subscription.ReceiveSettings = *config.ReceiveSettings
+	// Configure subscriber
+	subscriber := client.Subscriber(subscription.GetName())
+	subscriber.ReceiveSettings = pubsub.DefaultReceiveSettings
+	if cfg.ReceiveSettings != nil {
+		subscriber.ReceiveSettings = *cfg.ReceiveSettings
 	}
 
 	return &Subscriber{
-		subscription: subscription,
-		logger:       config.Logger,
+		underlying: subscriber,
+		logger:     cfg.Logger,
 	}, nil
 }
 
 // NewSubscriberWithDefaults creates an instance of Subscriber with the default settings
-func NewSubscriberWithDefaults(ctx context.Context, remote *pubsub.Client, subscriptionID, topicName string) (*Subscriber, error) {
-	// set the topic
-	topic := remote.Topic(topicName)
-
-	// set up the subscriber config
+func NewSubscriberWithDefaults(ctx context.Context, client *pubsub.Client, subscriptionID, topicName string) (*Subscriber, error) {
 	subscriberConfig := &SubscriberConfig{
-		SubscriptionID: subscriptionID,
-		SubscriptionConfig: &pubsub.SubscriptionConfig{
-			Topic:                 topic,
-			AckDeadline:           10 * time.Second,
-			ExpirationPolicy:      time.Duration(0),
+		SubscriptionConfig: &pubsubpb.Subscription{
+			Name:                  SubscriptionFullName(client.Project(), subscriptionID),
+			Topic:                 TopicFullName(client.Project(), topicName),
+			AckDeadlineSeconds:    10,
 			EnableMessageOrdering: true,
 		},
 		Logger: zapl.New(log.DebugLevel, os.Stdout),
 	}
 
-	// create the subscription connection
-	subscriber, err := NewSubscriber(ctx, remote, subscriberConfig)
-	// handle the error
+	subscriber, err := NewSubscriber(ctx, client, subscriberConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +140,7 @@ func (s *Subscriber) Consume(ctx context.Context, handler SubscriptionHandler, e
 
 	// consume messages
 	go func() {
-		err := s.subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+		err := s.underlying.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 			message <- msg
 		})
 		if err != nil {
@@ -226,28 +184,74 @@ func (s *Subscriber) Consume(ctx context.Context, handler SubscriptionHandler, e
 	}
 }
 
-// subscriptionConfigToUpdate returns a SubscriptionConfigToUpdate from SubscriptionConfig
-func subscriptionConfigToUpdate(config *pubsub.SubscriptionConfig) pubsub.SubscriptionConfigToUpdate {
-	var pushConfig *pubsub.PushConfig
-	var bigQueryConfig *pubsub.BigQueryConfig
+// ensureTopic checks if a topic exists, and creates it if missing.
+func ensureTopic(ctx context.Context, client *pubsub.Client, topicName string) error {
+	topicFullName := TopicFullName(client.Project(), topicName)
 
-	if config.PushConfig.Endpoint != "" {
-		pushConfig = &config.PushConfig
+	exists, err := topicExists(ctx, client, topicFullName)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
 	}
 
-	if config.BigQueryConfig.Table != "" {
-		bigQueryConfig = &config.BigQueryConfig
+	if err := createTopic(ctx, client, topicFullName); err != nil {
+		return fmt.Errorf("failed to create topic %s: %w", topicFullName, err)
 	}
+	return nil
+}
 
-	return pubsub.SubscriptionConfigToUpdate{
-		PushConfig:          pushConfig,
-		BigQueryConfig:      bigQueryConfig,
-		AckDeadline:         config.AckDeadline,
-		RetainAckedMessages: config.RetainAckedMessages,
-		RetentionDuration:   config.RetentionDuration,
-		ExpirationPolicy:    config.ExpirationPolicy,
-		DeadLetterPolicy:    config.DeadLetterPolicy,
-		Labels:              config.Labels,
-		RetryPolicy:         config.RetryPolicy,
+func topicExists(ctx context.Context, client *pubsub.Client, topicFullName string) (bool, error) {
+	topic, err := client.TopicAdminClient.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: topicFullName})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get topic %s: %w", topicFullName, err)
+	}
+	return !isEmptyTopic(topic), nil
+}
+
+func createTopic(ctx context.Context, client *pubsub.Client, topicFullName string) error {
+	topic, err := client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{Name: topicFullName})
+	if err != nil {
+		return err
+	}
+	if isEmptyTopic(topic) {
+		return fmt.Errorf("topic %s creation returned empty topic", topicFullName)
+	}
+	return nil
+}
+
+func isEmptyTopic(t *pubsubpb.Topic) bool {
+	return t == nil || proto.Equal(t, new(pubsubpb.Topic))
+}
+
+// ensureSubscription creates a subscription or updates it if it already exists.
+func ensureSubscription(ctx context.Context, client *pubsub.Client, subscription *pubsubpb.Subscription) (*pubsubpb.Subscription, error) {
+	sub, err := client.SubscriptionAdminClient.CreateSubscription(ctx, subscription)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.AlreadyExists:
+				return client.SubscriptionAdminClient.UpdateSubscription(ctx,
+					&pubsubpb.UpdateSubscriptionRequest{Subscription: subscription})
+			case codes.NotFound:
+				return nil, fmt.Errorf("topic %s not found", subscription.Topic)
+			}
+		}
+		return nil, err
+	}
+	return sub, nil
+}
+
+// applyDefaults ensures RetryPolicy is set if missing.
+func applyDefaults(cfg *SubscriberConfig) {
+	if cfg.SubscriptionConfig.RetryPolicy == nil {
+		cfg.SubscriptionConfig.RetryPolicy = &pubsubpb.RetryPolicy{
+			MinimumBackoff: durationpb.New(MinimumBackoff),
+			MaximumBackoff: durationpb.New(MaximumBackoff),
+		}
 	}
 }

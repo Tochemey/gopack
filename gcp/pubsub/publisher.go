@@ -30,14 +30,14 @@ import (
 	"fmt"
 	"sync"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 
 	"github.com/tochemey/gopack/log"
 )
 
 // Publisher implements the Publisher interface
 type Publisher struct {
-	Remote *pubsub.Client
+	Client *pubsub.Client
 	mutex  sync.Mutex
 	logger log.Logger
 }
@@ -45,7 +45,7 @@ type Publisher struct {
 // NewPublisher creates an instance of publisher
 func NewPublisher(remote *pubsub.Client, logger log.Logger) *Publisher {
 	return &Publisher{
-		Remote: remote,
+		Client: remote,
 		mutex:  sync.Mutex{},
 		logger: logger,
 	}
@@ -62,11 +62,11 @@ func (p *Publisher) Publish(ctx context.Context, topic *Topic, messages []*Messa
 	// add some debug logging
 	log.Debugf("publishing to GCP Pub/Sub topic=%s", topic.Name)
 	// reference the given topic
-	t := p.Remote.Topic(topic.Name)
+	publisher := p.Client.Publisher(topic.Name)
 	// set the message ordering to true to enable ordering publication
-	t.EnableMessageOrdering = topic.EnableOrdering
+	publisher.EnableMessageOrdering = topic.EnableOrdering
 	if topic.PublishSettings != nil {
-		t.PublishSettings = *topic.PublishSettings
+		publisher.PublishSettings = *topic.PublishSettings
 	}
 
 	var results []*pubsub.PublishResult
@@ -77,7 +77,7 @@ func (p *Publisher) Publish(ctx context.Context, topic *Topic, messages []*Messa
 			Data:        message.Payload,
 		}
 		// if ordering is required then set the key
-		if t.EnableMessageOrdering {
+		if publisher.EnableMessageOrdering {
 			// ignore that message when ordering is required
 			// and the given message to publish does not have the required key
 			if message.Key == "" {
@@ -86,7 +86,7 @@ func (p *Publisher) Publish(ctx context.Context, topic *Topic, messages []*Messa
 		}
 
 		// let us publish the message
-		result := t.Publish(ctx, pubsubMessage)
+		result := publisher.Publish(ctx, pubsubMessage)
 		// append the result to the results list
 		results = append(results, result)
 	}
