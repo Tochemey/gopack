@@ -86,13 +86,13 @@ func NewSubscriber(ctx context.Context, client *pubsub.Client, cfg *SubscriberCo
 	applyDefaults(cfg)
 
 	// Ensure subscription exists (or update if it already exists)
-	sub, err := ensureSubscription(ctx, client, cfg.SubscriptionConfig)
+	subscription, err := ensureSubscription(ctx, client, cfg.SubscriptionConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Configure subscriber
-	subscriber := client.Subscriber(sub.GetName())
+	subscriber := client.Subscriber(subscription.GetName())
 	subscriber.ReceiveSettings = pubsub.DefaultReceiveSettings
 	if cfg.ReceiveSettings != nil {
 		subscriber.ReceiveSettings = *cfg.ReceiveSettings
@@ -107,9 +107,9 @@ func NewSubscriber(ctx context.Context, client *pubsub.Client, cfg *SubscriberCo
 // NewSubscriberWithDefaults creates an instance of Subscriber with the default settings
 func NewSubscriberWithDefaults(ctx context.Context, client *pubsub.Client, subscriptionID, topicName string) (*Subscriber, error) {
 	subscriberConfig := &SubscriberConfig{
-		SubscriptionID: subscriptionID,
 		SubscriptionConfig: &pubsubpb.Subscription{
-			Topic:                 topicName,
+			Name:                  SubscriptionFullName(client.Project(), subscriptionID),
+			Topic:                 TopicFullName(client.Project(), topicName),
 			AckDeadlineSeconds:    10,
 			EnableMessageOrdering: true,
 		},
@@ -186,18 +186,40 @@ func (s *Subscriber) Consume(ctx context.Context, handler SubscriptionHandler, e
 
 // ensureTopic checks if a topic exists, and creates it if missing.
 func ensureTopic(ctx context.Context, client *pubsub.Client, topicName string) error {
-	topic, err := client.TopicAdminClient.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: topicName})
+	topicFullName := TopicFullName(client.Project(), topicName)
+
+	exists, err := topicExists(ctx, client, topicFullName)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
+	if err := createTopic(ctx, client, topicFullName); err != nil {
+		return fmt.Errorf("failed to create topic %s: %w", topicFullName, err)
+	}
+	return nil
+}
+
+func topicExists(ctx context.Context, client *pubsub.Client, topicFullName string) (bool, error) {
+	topic, err := client.TopicAdminClient.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: topicFullName})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get topic %s: %w", topicFullName, err)
+	}
+	return !isEmptyTopic(topic), nil
+}
+
+func createTopic(ctx context.Context, client *pubsub.Client, topicFullName string) error {
+	topic, err := client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{Name: topicFullName})
 	if err != nil {
 		return err
 	}
 	if isEmptyTopic(topic) {
-		topic, err = client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{Name: topicName})
-		if err != nil {
-			return err
-		}
-		if isEmptyTopic(topic) {
-			return fmt.Errorf("topic %s does not exist", topicName)
-		}
+		return fmt.Errorf("topic %s creation returned empty topic", topicFullName)
 	}
 	return nil
 }
@@ -207,16 +229,16 @@ func isEmptyTopic(t *pubsubpb.Topic) bool {
 }
 
 // ensureSubscription creates a subscription or updates it if it already exists.
-func ensureSubscription(ctx context.Context, client *pubsub.Client, cfg *pubsubpb.Subscription) (*pubsubpb.Subscription, error) {
-	sub, err := client.SubscriptionAdminClient.CreateSubscription(ctx, cfg)
+func ensureSubscription(ctx context.Context, client *pubsub.Client, subscription *pubsubpb.Subscription) (*pubsubpb.Subscription, error) {
+	sub, err := client.SubscriptionAdminClient.CreateSubscription(ctx, subscription)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			switch st.Code() {
 			case codes.AlreadyExists:
 				return client.SubscriptionAdminClient.UpdateSubscription(ctx,
-					&pubsubpb.UpdateSubscriptionRequest{Subscription: cfg})
+					&pubsubpb.UpdateSubscriptionRequest{Subscription: subscription})
 			case codes.NotFound:
-				return nil, fmt.Errorf("topic %s not found", cfg.Topic)
+				return nil, fmt.Errorf("topic %s not found", subscription.Topic)
 			}
 		}
 		return nil, err

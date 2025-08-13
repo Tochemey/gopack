@@ -26,10 +26,10 @@ package pubsub
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,9 +50,7 @@ func TestCreateTopic(t *testing.T) {
 		ctx := context.TODO()
 		emulator := NewEmulator()
 
-		// set the emulator env var
-		err := os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
-		assert.NoError(t, err)
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
@@ -65,7 +63,7 @@ func TestCreateTopic(t *testing.T) {
 		topic, err := mgmt.CreateTopic(ctx, topicName)
 		assert.NoError(t, err)
 		assert.NotNil(t, topic)
-		assert.IsType(t, &pubsub.Topic{}, topic)
+		assert.IsType(t, &pubsubpb.Topic{}, topic)
 
 		// check that the topic exist
 		topics, err := mgmt.ListTopics(ctx)
@@ -73,11 +71,8 @@ func TestCreateTopic(t *testing.T) {
 		assert.NotEmpty(t, topics)
 
 		assert.Equal(t, 1, len(topics))
-		assert.Equal(t, "projects/test/topics/test-topic", topics[0].String())
-		assert.Equal(t, "test-topic", topics[0].ID())
+		assert.Equal(t, "projects/test/topics/test-topic", topics[0].GetName())
 
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 		err = emulator.Cleanup()
 		assert.NoError(t, err)
 	})

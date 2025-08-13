@@ -29,16 +29,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	pubpb "google.golang.org/genproto/googleapis/pubsub/v1"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/tochemey/gopack/log/zapl"
 )
@@ -50,7 +50,78 @@ func TestNewSubscriberClient(t *testing.T) {
 		emulator := NewEmulator()
 
 		// set the emulator addr
-		require.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
+
+		// create a pubsub client
+		client, err := pubsub.NewClient(ctx, projectID)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+
+		// create an instance of the management suite
+		mgmt := NewTooling(client)
+		require.NotNil(t, mgmt)
+
+		// create the topic using the management API
+		_, err = mgmt.CreateTopic(ctx, topicName)
+		require.NoError(t, err)
+
+		// let us start consuming the messages
+		subCfg := &pubsubpb.Subscription{
+			Name:  SubscriptionFullName(projectID, subscriberID),
+			Topic: TopicFullName(projectID, topicName),
+			RetryPolicy: &pubsubpb.RetryPolicy{
+				MinimumBackoff: durationpb.New(time.Second * 100),
+				MaximumBackoff: durationpb.New(time.Second * 1000),
+			},
+		}
+
+		receiveSettings := &pubsub.ReceiveSettings{
+			MaxExtension:               1,
+			MaxDurationPerAckExtension: time.Millisecond * 50,
+			MinDurationPerAckExtension: time.Millisecond * 100,
+			MaxOutstandingMessages:     1,
+			MaxOutstandingBytes:        1048576, // 1mb
+			NumGoroutines:              1,
+		}
+
+		subscriberConfig := &SubscriberConfig{
+			SubscriptionConfig: subCfg,
+			ReceiveSettings:    receiveSettings,
+			Logger:             zapl.DiscardLogger,
+		}
+		// create an instance of the subscriber
+		subscriber, err := NewSubscriber(ctx, client, subscriberConfig)
+		require.NotNil(t, subscriber)
+		require.NoError(t, err)
+
+		// fetch the list of subscriber
+		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubsubpb.ListSubscriptionsRequest{
+			Project:   fmt.Sprintf("projects/%s", projectID),
+			PageSize:  10,
+			PageToken: "",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, 1, len(resp.GetSubscriptions()))
+		actualSub := resp.GetSubscriptions()[0]
+		expected := fmt.Sprintf("projects/%s/subscriptions/%s", projectID, subscriberID)
+		require.Equal(t, expected, actualSub.GetName())
+		// asserts values were set
+		require.EqualValues(t, 1000, actualSub.GetRetryPolicy().GetMaximumBackoff().Seconds)
+		require.EqualValues(t, 100, actualSub.GetRetryPolicy().GetMinimumBackoff().Seconds)
+
+		// cleanup resources
+		require.NoError(t, emulator.Cleanup())
+		require.NoError(t, client.Close())
+	})
+	t.Run("successful with existing subscription", func(t *testing.T) {
+		// create the go context
+		ctx := context.TODO()
+		emulator := NewEmulator()
+
+		// set the emulator addr
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
@@ -66,226 +137,86 @@ func TestNewSubscriberClient(t *testing.T) {
 		require.NoError(t, err)
 
 		// create the topic to use
-		topic := client.Topic(topicName)
+		topic, err := client.TopicAdminClient.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: TopicFullName(projectID, topicName)})
+		require.NoError(t, err)
+		require.NotNil(t, topic)
 
 		// let us start consuming the messages
-		subCfg := &pubsub.SubscriptionConfig{
-			Topic: topic,
-			RetryPolicy: &pubsub.RetryPolicy{
-				MinimumBackoff: time.Second * 100,
-				MaximumBackoff: time.Second * 1000,
+		subCfg := &pubsubpb.Subscription{
+			Topic: topic.GetName(),
+			Name:  SubscriptionFullName(projectID, subscriberID),
+			RetryPolicy: &pubsubpb.RetryPolicy{
+				MinimumBackoff: durationpb.New(time.Second * 100),
+				MaximumBackoff: durationpb.New(time.Second * 1000),
 			},
+			AckDeadlineSeconds: 0,
 		}
 
-		receiveCfg := &pubsub.ReceiveSettings{
-			MaxExtension:           1,
-			MaxExtensionPeriod:     time.Millisecond * 50,
-			MinExtensionPeriod:     time.Millisecond * 100,
-			MaxOutstandingMessages: 1,
-			MaxOutstandingBytes:    1048576, // 1mb
-			UseLegacyFlowControl:   false,
-			NumGoroutines:          1,
+		receiveSettings := &pubsub.ReceiveSettings{
+			MaxExtension:               1,
+			MaxDurationPerAckExtension: time.Millisecond * 50,
+			MinDurationPerAckExtension: time.Millisecond * 100,
+			MaxOutstandingMessages:     1,
+			MaxOutstandingBytes:        1048576, // 1mb
+			NumGoroutines:              1,
 		}
-
-		subscriberConfig := &SubscriberConfig{
-			SubscriptionID:     subscriberID,
-			SubscriptionConfig: subCfg,
-			ReceiveSettings:    receiveCfg,
-			Logger:             zapl.DiscardLogger,
-		}
-		// create an instance of the subscriber
-		subClient, err := NewSubscriber(ctx, client, subscriberConfig)
-		assert.NotNil(t, subClient)
-		assert.NoError(t, err)
-
-		// fetch the list of subscriber
-		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubpb.ListSubscriptionsRequest{
-			Project:   fmt.Sprintf("projects/%s", projectID),
-			PageSize:  10,
-			PageToken: "",
-		})
-
-		assert.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.Equal(t, 1, len(resp.GetSubscriptions()))
-		actualSub := resp.GetSubscriptions()[0]
-		expected := fmt.Sprintf("projects/%s/subscriptions/%s", projectID, subscriberID)
-		assert.Equal(t, expected, actualSub.GetName())
-		// asserts values were set
-		assert.EqualValues(t, 1000, actualSub.GetRetryPolicy().GetMaximumBackoff().Seconds)
-		assert.EqualValues(t, 100, actualSub.GetRetryPolicy().GetMinimumBackoff().Seconds)
-
-		// cleanup resources
-		assert.NoError(t, emulator.Cleanup())
-		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
-	})
-	t.Run("successful with existing subscription", func(t *testing.T) {
-		// create the go context
-		ctx := context.TODO()
-		emulator := NewEmulator()
-
-		// set the emulator addr
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
-		client, err := pubsub.NewClient(ctx, projectID)
-		assert.NoError(t, err)
-		assert.NotNil(t, client)
-
-		// create an instance of the management suite
-		mgmt := NewTooling(client)
-		assert.NotNil(t, mgmt)
-
-		// create the topic using the management API
-		_, err = mgmt.CreateTopic(ctx, topicName)
-		assert.NoError(t, err)
-
-		// create the topic to use
-		topic := client.Topic(topicName)
-
-		// let us start consuming the messages
-		subCfg := &pubsub.SubscriptionConfig{
-			Topic: topic,
-			RetryPolicy: &pubsub.RetryPolicy{
-				MinimumBackoff: time.Second * 100,
-				MaximumBackoff: time.Second * 1000,
-			},
-			AckDeadline: 0,
-		}
-
-		receiveCfg := &pubsub.ReceiveSettings{
-			MaxExtension:           1,
-			MaxExtensionPeriod:     time.Millisecond * 50,
-			MinExtensionPeriod:     time.Millisecond * 100,
-			MaxOutstandingMessages: 1,
-			MaxOutstandingBytes:    1048576, // 1mb
-			UseLegacyFlowControl:   false,
-			NumGoroutines:          1,
-		}
-
-		// creates the initial subscription
-		_, err = client.CreateSubscription(ctx, subscriberID, pubsub.SubscriptionConfig{
-			Topic: topic,
-		})
-		assert.NoError(t, err)
 
 		// create an instance of the subscriber
 		subClient, err := NewSubscriber(ctx, client, &SubscriberConfig{
-			SubscriptionID:     subscriberID,
 			SubscriptionConfig: subCfg,
-			ReceiveSettings:    receiveCfg,
+			ReceiveSettings:    receiveSettings,
 			Logger:             zapl.DiscardLogger,
 		})
-		assert.NotNil(t, subClient)
-		assert.NoError(t, err)
+		require.NotNil(t, subClient)
+		require.NoError(t, err)
 
 		// fetch the list of subscriber
-		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubpb.ListSubscriptionsRequest{
+		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubsubpb.ListSubscriptionsRequest{
 			Project:   fmt.Sprintf("projects/%s", projectID),
 			PageSize:  1,
 			PageToken: "",
 		})
 
-		assert.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.Equal(t, 1, len(resp.GetSubscriptions()))
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, 1, len(resp.GetSubscriptions()))
 		actualSub := resp.GetSubscriptions()[0]
 		expected := fmt.Sprintf("projects/%s/subscriptions/%s", projectID, subscriberID)
-		assert.Equal(t, expected, actualSub.GetName())
+		require.Equal(t, expected, actualSub.GetName())
 		// asserts values were updated
-		assert.EqualValues(t, 1000, actualSub.GetRetryPolicy().GetMaximumBackoff().Seconds)
-		assert.EqualValues(t, 100, actualSub.GetRetryPolicy().GetMinimumBackoff().Seconds)
+		require.EqualValues(t, 1000, actualSub.GetRetryPolicy().GetMaximumBackoff().Seconds)
+		require.EqualValues(t, 100, actualSub.GetRetryPolicy().GetMinimumBackoff().Seconds)
 
 		// cleanup resources
-		assert.NoError(t, emulator.Cleanup())
-		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
-	})
-	t.Run("topic does not exist", func(t *testing.T) {
-		// create the go context
-		ctx := context.TODO()
-		emulator := NewEmulator()
-
-		// set the emulator addr
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
-
-		client, err := pubsub.NewClient(ctx, projectID)
-		assert.NoError(t, err)
-		assert.NotNil(t, client)
-
-		// create an instance of the management suite
-		mgmt := NewTooling(client)
-		assert.NotNil(t, mgmt)
-
-		// create the topic to use
-		topic := client.Topic(topicName)
-
-		// let us start consuming the messages
-		subCfg := &pubsub.SubscriptionConfig{
-			Topic: topic,
-			RetryPolicy: &pubsub.RetryPolicy{
-				MinimumBackoff: time.Second * 100,
-				MaximumBackoff: time.Second * 1000,
-			},
-		}
-
-		receiveCfg := &pubsub.ReceiveSettings{
-			MaxExtension:           1,
-			MaxExtensionPeriod:     time.Millisecond * 50,
-			MinExtensionPeriod:     time.Millisecond * 100,
-			MaxOutstandingMessages: 1,
-			MaxOutstandingBytes:    1048576, // 1mb
-			UseLegacyFlowControl:   false,
-			NumGoroutines:          1,
-		}
-
-		// create an instance of the subscriber
-		subClient, err := NewSubscriber(ctx, client, &SubscriberConfig{
-			SubscriptionID:     subscriberID,
-			SubscriptionConfig: subCfg,
-			ReceiveSettings:    receiveCfg,
-			Logger:             zapl.DiscardLogger,
-		})
-		assert.Nil(t, subClient)
-		assert.EqualError(t, err, "topic test-topic does not exist")
-
-		// cleanup resources
-		assert.NoError(t, emulator.Cleanup())
-		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
+		require.NoError(t, emulator.Cleanup())
+		require.NoError(t, client.Close())
 	})
 	t.Run("with config not set", func(t *testing.T) {
 		ctx := context.TODO()
 		emulator := NewEmulator()
 
-		// set the emulator addr
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		projectID := "test"
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
-		assert.NoError(t, err)
-		assert.NotNil(t, client)
+		require.NoError(t, err)
+		require.NotNil(t, client)
 
 		// create an instance of the subscriber
 		subClient, err := NewSubscriber(ctx, client, nil)
-		assert.Nil(t, subClient)
-		assert.Error(t, err)
-		assert.EqualError(t, err, "config is not set")
+		require.Nil(t, subClient)
+		require.Error(t, err)
+		require.EqualError(t, err, "config is not set")
 
-		assert.NoError(t, emulator.Cleanup())
-		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
+		require.NoError(t, emulator.Cleanup())
+		require.NoError(t, client.Close())
 	})
 	t.Run("with invalid config", func(t *testing.T) {
 		ctx := context.TODO()
 		emulator := NewEmulator()
 
-		// set the emulator addr
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		projectID := "test"
 		// create a pubsub client
@@ -293,10 +224,8 @@ func TestNewSubscriberClient(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 
-		subscriberID := "some-subscription"
 		subscriberConfig := &SubscriberConfig{
-			SubscriptionID: subscriberID,
-			Logger:         zapl.DiscardLogger,
+			Logger: zapl.DiscardLogger,
 		}
 		// create an instance of the subscriber
 		subClient, err := NewSubscriber(ctx, client, subscriberConfig)
@@ -305,8 +234,6 @@ func TestNewSubscriberClient(t *testing.T) {
 
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 	})
 }
 
@@ -317,7 +244,7 @@ func TestConsume(t *testing.T) {
 		emulator := NewEmulator()
 
 		// set the emulator addr
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		client, err := pubsub.NewClient(ctx, projectID)
 		assert.NoError(t, err)
@@ -334,15 +261,12 @@ func TestConsume(t *testing.T) {
 		// create an instance of the publisher
 		pub := NewPublisher(client, zapl.DiscardLogger)
 		assert.NotNil(t, pub)
-		// create the topic to use
-		topic := client.Topic(topicName)
 
 		// let us start consuming the messages
-		subCfg := &pubsub.SubscriptionConfig{Topic: topic}
+		subCfg := &pubsubpb.Subscription{Topic: TopicFullName(projectID, topicName), Name: SubscriptionFullName(projectID, subscriberID)}
 
 		// create an instance of the subscriber
 		subClient, err := NewSubscriber(ctx, client, &SubscriberConfig{
-			SubscriptionID:     subscriberID,
 			SubscriptionConfig: subCfg,
 			Logger:             zapl.DiscardLogger,
 		})
@@ -350,7 +274,7 @@ func TestConsume(t *testing.T) {
 		assert.NoError(t, err)
 
 		// fetch the list of subscriber
-		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubpb.ListSubscriptionsRequest{
+		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubsubpb.ListSubscriptionsRequest{
 			Project:   fmt.Sprintf("projects/%s", projectID),
 			PageSize:  10,
 			PageToken: "",
@@ -414,16 +338,13 @@ func TestConsume(t *testing.T) {
 		// cleanup resources
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 	})
 	t.Run("consume a published message with failure handler", func(t *testing.T) {
 		// create the go context
 		ctx := context.TODO()
 		emulator := NewEmulator()
 
-		// set the emulator env var
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		client, err := pubsub.NewClient(ctx, projectID)
 		assert.NoError(t, err)
@@ -441,15 +362,11 @@ func TestConsume(t *testing.T) {
 		pub := NewPublisher(client, zapl.DiscardLogger)
 		assert.NotNil(t, pub)
 
-		// create the topic to use
-		topic := client.Topic(topicName)
-
 		// let us start consuming the messages
-		subCfg := &pubsub.SubscriptionConfig{Topic: topic}
+		subCfg := &pubsubpb.Subscription{Topic: TopicFullName(projectID, topicName), Name: SubscriptionFullName(projectID, subscriberID)}
 
 		// create an instance of the subscriber
 		subClient, err := NewSubscriber(ctx, client, &SubscriberConfig{
-			SubscriptionID:     subscriberID,
 			SubscriptionConfig: subCfg,
 			Logger:             zapl.DiscardLogger,
 		})
@@ -457,7 +374,7 @@ func TestConsume(t *testing.T) {
 		assert.NoError(t, err)
 
 		// fetch the list of subscriber
-		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubpb.ListSubscriptionsRequest{
+		resp, err := emulator.Server().GServer.ListSubscriptions(ctx, &pubsubpb.ListSubscriptionsRequest{
 			Project:   fmt.Sprintf("projects/%s", projectID),
 			PageSize:  10,
 			PageToken: "",
@@ -512,17 +429,13 @@ func TestConsume(t *testing.T) {
 		// cleanup resources
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 	})
 	t.Run("consume many messages", func(t *testing.T) {
 		// create the go context
 		ctx := context.TODO()
 		emulator := NewEmulator()
 
-		// set the emulator addr
-		// set the emulator env var
-		assert.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint()))
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		client, err := pubsub.NewClient(ctx, projectID)
 		assert.NoError(t, err)
@@ -587,7 +500,5 @@ func TestConsume(t *testing.T) {
 		// cleanup resources
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 	})
 }

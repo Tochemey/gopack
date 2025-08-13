@@ -60,6 +60,7 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 
 		subscriptionConfig := &pubsubpb.Subscription{
 			Topic: topic.GetName(),
+			Name:  subscriberID,
 			RetryPolicy: &pubsubpb.RetryPolicy{
 				MinimumBackoff: durationpb.New(time.Second * 100),
 				MaximumBackoff: durationpb.New(time.Second * 1000),
@@ -76,7 +77,6 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 		}
 
 		subscriberConfig := &SubscriberConfig{
-			SubscriptionID:     subscriberID,
 			SubscriptionConfig: subscriptionConfig,
 			ReceiveSettings:    receiveSettings,
 			Logger:             zapl.DiscardLogger,
@@ -100,17 +100,17 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 		}
 
 		subscriberConfig := &SubscriberConfig{
-			SubscriptionID:  subscriberID,
 			ReceiveSettings: receiveCfg,
 			Logger:          zapl.DiscardLogger,
 		}
 
 		err := subscriberConfig.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.EqualError(t, err, "subscription config is not set")
 	})
 	t.Run("topic not set", func(t *testing.T) {
 		subscriptionConfig := &pubsubpb.Subscription{
+			Name: subscriberID,
 			RetryPolicy: &pubsubpb.RetryPolicy{
 				MinimumBackoff: durationpb.New(time.Second * 100),
 				MaximumBackoff: durationpb.New(time.Second * 1000),
@@ -127,7 +127,6 @@ func TestSubscriberConfig_Validate(t *testing.T) {
 		}
 
 		subscriberConfig := &SubscriberConfig{
-			SubscriptionID:     subscriberID,
 			ReceiveSettings:    receiveSettings,
 			SubscriptionConfig: subscriptionConfig,
 			Logger:             zapl.DiscardLogger,

@@ -27,10 +27,9 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"testing"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
@@ -45,8 +44,7 @@ func TestPublish(t *testing.T) {
 		emulator := NewEmulator()
 
 		// set the emulator env var
-		err := os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
-		assert.NoError(t, err)
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
@@ -107,18 +105,13 @@ func TestPublish(t *testing.T) {
 		// cleanup resources
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 	})
 	t.Run("fails when the ordering key is not set with ordering turned on", func(t *testing.T) {
 		// create the go context
 		ctx := context.TODO()
 		emulator := NewEmulator()
 
-		// set the emulator addr
-		// set the emulator env var
-		err := os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
-		assert.NoError(t, err)
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
@@ -167,8 +160,6 @@ func TestPublish(t *testing.T) {
 		// cleanup resources
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 	})
 	t.Run("fails when the topic does not exist", func(t *testing.T) {
 		// create the go context
@@ -176,9 +167,7 @@ func TestPublish(t *testing.T) {
 		// set the emulator addr
 		emulator := NewEmulator()
 
-		// set the emulator env var
-		err := os.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
-		assert.NoError(t, err)
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
 
 		// create a pubsub client
 		client, err := pubsub.NewClient(ctx, projectID)
@@ -219,7 +208,5 @@ func TestPublish(t *testing.T) {
 		// cleanup resources
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
-		err = os.Unsetenv("PUBSUB_EMULATOR_HOST")
-		assert.NoError(t, err)
 	})
 }

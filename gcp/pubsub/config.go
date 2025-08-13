@@ -34,7 +34,6 @@ import (
 
 // SubscriberConfig holds the subscriber settings
 type SubscriberConfig struct {
-	SubscriptionID     string
 	SubscriptionConfig *pubsubpb.Subscription
 	ReceiveSettings    *pubsub.ReceiveSettings
 	Logger             log.Logger
@@ -46,7 +45,7 @@ func (c *SubscriberConfig) Validate() error {
 	return validation.New(validation.FailFast()).
 		AddAssertion(c.SubscriptionConfig != nil, "subscription config is not set").
 		AddAssertion(c.Logger != nil, "subscription logger is not set").
-		AddValidator(validation.NewEmptyStringValidator("Topic", c.SubscriptionConfig.Topic)).
-		AddValidator(validation.NewEmptyStringValidator("SubscriptionID", c.SubscriptionID)).
+		AddAssertion(c.SubscriptionConfig != nil && c.SubscriptionConfig.Topic != "", "subscription topic is not set").
+		AddAssertion(c.SubscriptionConfig != nil && c.SubscriptionConfig.Name != "", "subscription id is not set").
 		Validate()
 }
