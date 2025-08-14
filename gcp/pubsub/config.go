@@ -37,7 +37,6 @@ type SubscriberConfig struct {
 	SubscriptionConfig *pubsubpb.Subscription
 	ReceiveSettings    *pubsub.ReceiveSettings
 	Logger             log.Logger
-	EnableTracing      bool
 }
 
 // Validate validates the config
