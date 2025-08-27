@@ -35,7 +35,7 @@ import (
 	grpcPrometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 
-	"github.com/tochemey/gopack/errorschain"
+	"github.com/tochemey/gopack/chain"
 	"github.com/tochemey/gopack/otel/metric"
 	"github.com/tochemey/gopack/otel/trace"
 )
@@ -140,11 +140,11 @@ func (s *grpcServer) AwaitTermination(ctx context.Context) {
 	// wait for a shutdown signal, and then shutdown
 	go func() {
 		<-notifier
-		if err := errorschain.
-			New(errorschain.ReturnFirst()).
-			AddErrorFn(func() error { return s.cleanup(ctx) }).
-			AddErrorFn(func() error { return s.shutdownHook(ctx) }).
-			Error(); err != nil {
+		if err := chain.
+			New(chain.WithFailFast()).
+			AddContextRunner(s.cleanup).
+			AddContextRunner(s.shutdownHook).
+			Run(); err != nil {
 			panic(err)
 		}
 

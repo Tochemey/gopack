@@ -69,14 +69,13 @@ func (s *ClientTestSuite) TestSayHello() {
 	s.Run("with context", func() {
 		ctx := context.Background()
 		var err error
-		clientBuilder := NewClientBuilder().
+		clientBuilder := NewConnectionBuilder().
 			WithInsecure().
 			WithDefaultStreamInterceptors().
 			WithDefaultUnaryInterceptors().
-			WithBlock().
 			WithOptions(grpc.WithContextDialer(GetBufDialer(s.server.GetListener())))
 
-		s.clientConn, err = clientBuilder.ClientConn("localhost:50051")
+		s.clientConn, err = clientBuilder.Conn("localhost:50051")
 
 		if err != nil {
 			s.T().Fatalf("Failed to dial bufnet: %v", err)

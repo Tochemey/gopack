@@ -28,7 +28,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -75,7 +74,6 @@ type ServerBuilder struct {
 	grpcPort          int
 	grpcHost          string
 	traceURL          string
-	logger            log.Logger
 
 	shutdownHook ShutdownHook
 	isBuilt      bool
@@ -209,8 +207,8 @@ func (sb *ServerBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryServerI
 	return sb
 }
 
-// WithTLSCert sets credentials for grpcServer connections
-func (sb *ServerBuilder) WithTLSCert(cert *tls.Certificate) *ServerBuilder {
+// WithCert sets credentials for grpcServer connections
+func (sb *ServerBuilder) WithCert(cert *tls.Certificate) *ServerBuilder {
 	sb.WithOption(grpc.Creds(credentials.NewServerTLSFromCert(cert)))
 	return sb
 }
@@ -247,9 +245,8 @@ func (sb *ServerBuilder) Build() (Server, error) {
 	srv := grpc.NewServer(sb.options...)
 
 	// create the grpc server
-	addr := fmt.Sprintf("%s:%d", sb.grpcHost, sb.grpcPort)
 	grpcServer := &grpcServer{
-		addr:         addr,
+		addr:         fmt.Sprintf("%s:%d", sb.grpcHost, sb.grpcPort),
 		server:       srv,
 		shutdownHook: sb.shutdownHook,
 	}

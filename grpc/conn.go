@@ -25,7 +25,6 @@
 package grpc
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"time"
@@ -36,44 +35,26 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-// ConnectionBuilder is a builder to create GRPC connection to the GRPC Server
-type ConnectionBuilder interface {
-	WithOptions(opts ...grpc.DialOption)
-	WithInsecure()
-	WithUnaryInterceptors(interceptors []grpc.UnaryClientInterceptor)
-	WithStreamInterceptors(interceptors []grpc.StreamClientInterceptor)
-	WithKeepAliveParams(params keepalive.ClientParameters)
-	GetConn(ctx context.Context, addr string) (*grpc.ClientConn, error)
-	GetTLSConn(ctx context.Context, addr string) (*grpc.ClientConn, error)
-}
-
-// ClientBuilder is grpc client builder
-type ClientBuilder struct {
+// ConnectionBuilder is grpc client builder
+type ConnectionBuilder struct {
 	options              []grpc.DialOption
 	transportCredentials credentials.TransportCredentials
 }
 
-// NewClientBuilder creates an instance of ClientBuilder
-func NewClientBuilder() *ClientBuilder {
-	return &ClientBuilder{}
+// NewConnectionBuilder creates an instance of ConnectionBuilder
+func NewConnectionBuilder() *ConnectionBuilder {
+	return &ConnectionBuilder{}
 }
 
 // WithOptions set dial options
-func (b *ClientBuilder) WithOptions(opts ...grpc.DialOption) *ClientBuilder {
+func (b *ConnectionBuilder) WithOptions(opts ...grpc.DialOption) *ConnectionBuilder {
 	b.options = append(b.options, opts...)
 	return b
 }
 
 // WithInsecure set the connection as insecure
-func (b *ClientBuilder) WithInsecure() *ClientBuilder {
+func (b *ConnectionBuilder) WithInsecure() *ConnectionBuilder {
 	b.options = append(b.options, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	return b
-}
-
-// WithBlock the dialing blocks until the  underlying connection is up.
-// Without this, Dial returns immediately and connecting the server happens in background.
-func (b *ClientBuilder) WithBlock() *ClientBuilder {
-	b.options = append(b.options, grpc.WithBlock())
 	return b
 }
 
@@ -84,7 +65,7 @@ func (b *ClientBuilder) WithBlock() *ClientBuilder {
 // liveness of the connection. Make sure these parameters are set in
 // coordination with the keepalive policy on the server, as incompatible
 // settings can result in closing of connection.
-func (b *ClientBuilder) WithKeepAliveParams(params keepalive.ClientParameters) *ClientBuilder {
+func (b *ConnectionBuilder) WithKeepAliveParams(params keepalive.ClientParameters) *ConnectionBuilder {
 	keepAlive := grpc.WithKeepaliveParams(params)
 	b.options = append(b.options, keepAlive)
 	return b
@@ -93,7 +74,7 @@ func (b *ClientBuilder) WithKeepAliveParams(params keepalive.ClientParameters) *
 // WithUnaryInterceptors set a list of interceptors to the Grpc client for unary connection
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the server side.
 // By using `grpc_middleware` we are able to provides convenient method to add a list of interceptors
-func (b *ClientBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryClientInterceptor) *ClientBuilder {
+func (b *ConnectionBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryClientInterceptor) *ConnectionBuilder {
 	b.options = append(b.options, grpc.WithChainUnaryInterceptor(interceptors...))
 	return b
 }
@@ -101,19 +82,19 @@ func (b *ClientBuilder) WithUnaryInterceptors(interceptors ...grpc.UnaryClientIn
 // WithStreamInterceptors set a list of interceptors to the Grpc client for stream connection
 // By default, gRPC doesn't allow one to have more than one interceptor either on the client nor on the server side.
 // By using `grpc_middleware` we are able to provides convenient method to add a list of interceptors
-func (b *ClientBuilder) WithStreamInterceptors(interceptors ...grpc.StreamClientInterceptor) *ClientBuilder {
+func (b *ConnectionBuilder) WithStreamInterceptors(interceptors ...grpc.StreamClientInterceptor) *ConnectionBuilder {
 	b.options = append(b.options, grpc.WithChainStreamInterceptor(interceptors...))
 	return b
 }
 
-// WithClientTLS sets the client TLS configuration
-func (b *ClientBuilder) WithClientTLS(config *tls.Config) *ClientBuilder {
+// WithTLS sets the client TLS configuration
+func (b *ConnectionBuilder) WithTLS(config *tls.Config) *ConnectionBuilder {
 	b.transportCredentials = credentials.NewTLS(config)
 	return b
 }
 
 // WithDefaultUnaryInterceptors sets the default unary interceptors for the grpc server
-func (b *ClientBuilder) WithDefaultUnaryInterceptors() *ClientBuilder {
+func (b *ConnectionBuilder) WithDefaultUnaryInterceptors() *ConnectionBuilder {
 	return b.WithUnaryInterceptors(
 		NewRequestIDUnaryClientInterceptor(),
 		NewClientMetricUnaryInterceptor(),
@@ -121,15 +102,15 @@ func (b *ClientBuilder) WithDefaultUnaryInterceptors() *ClientBuilder {
 }
 
 // WithDefaultStreamInterceptors sets the default stream interceptors for the grpc server
-func (b *ClientBuilder) WithDefaultStreamInterceptors() *ClientBuilder {
+func (b *ConnectionBuilder) WithDefaultStreamInterceptors() *ConnectionBuilder {
 	return b.WithStreamInterceptors(
 		NewRequestIDStreamClientInterceptor(),
 		NewClientMetricStreamInterceptor(),
 	).WithOptions(grpc.WithStatsHandler(NewClientTracingHandler()))
 }
 
-// ClientConn returns the client connection to the server
-func (b *ClientBuilder) ClientConn(addr string) (*grpc.ClientConn, error) {
+// Conn returns the client connection to the server
+func (b *ConnectionBuilder) Conn(addr string) (*grpc.ClientConn, error) {
 	if addr == "" {
 		return nil, fmt.Errorf("target connection parameter missing. address = %s", addr)
 	}
@@ -140,8 +121,8 @@ func (b *ClientBuilder) ClientConn(addr string) (*grpc.ClientConn, error) {
 	return cc, nil
 }
 
-// TLSClientConn returns client connection to the server
-func (b *ClientBuilder) TLSClientConn(addr string) (*grpc.ClientConn, error) {
+// TLSConn returns client connection to the server
+func (b *ConnectionBuilder) TLSConn(addr string) (*grpc.ClientConn, error) {
 	b.options = append(b.options, grpc.WithTransportCredentials(b.transportCredentials))
 	if addr == "" {
 		return nil, fmt.Errorf("target connection parameter missing. address = %s", addr)
@@ -153,10 +134,10 @@ func (b *ClientBuilder) TLSClientConn(addr string) (*grpc.ClientConn, error) {
 	return cc, nil
 }
 
-// DefaultClientConn return a grpc client connection
-func DefaultClientConn(addr string) (*grpc.ClientConn, error) {
+// DefaultConn return a grpc client connection
+func DefaultConn(addr string) (*grpc.ClientConn, error) {
 	// create the client builder
-	clientBuilder := NewClientBuilder().
+	clientBuilder := NewConnectionBuilder().
 		WithDefaultUnaryInterceptors().
 		WithDefaultStreamInterceptors().
 		WithInsecure().
@@ -165,7 +146,7 @@ func DefaultClientConn(addr string) (*grpc.ClientConn, error) {
 			PermitWithoutStream: true,
 		})
 	// get the gRPC client connection
-	conn, err := clientBuilder.ClientConn(addr)
+	conn, err := clientBuilder.Conn(addr)
 	// handle the connection error
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to client. address = %s: %w", addr, err)

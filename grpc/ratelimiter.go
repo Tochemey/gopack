@@ -43,13 +43,13 @@ type Limiter interface {
 
 // RateLimiter implements Limiter interface.
 type RateLimiter struct {
-	ratelimiter *rate.Limiter // nolint
+	limiter *rate.Limiter // nolint
 }
 
 // Check applies the rate limit
 func (l *RateLimiter) Check(ctx context.Context) bool {
 	// This is a blocking call. Honors the rate limit
-	if err := l.ratelimiter.Wait(ctx); err != nil {
+	if err := l.limiter.Wait(ctx); err != nil {
 		// rate limit reached
 		return true
 	}
@@ -59,7 +59,7 @@ func (l *RateLimiter) Check(ctx context.Context) bool {
 // NewRateLimiter return new go-grpc Limiter, specified the number of requests you want to limit as well as the limit period.
 func NewRateLimiter(requestCount int, limitPeriod time.Duration) *RateLimiter {
 	return &RateLimiter{
-		ratelimiter: rate.NewLimiter(rate.Every(limitPeriod), requestCount),
+		limiter: rate.NewLimiter(rate.Every(limitPeriod), requestCount),
 	}
 }
 
