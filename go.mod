@@ -3,7 +3,7 @@ module github.com/tochemey/gopack
 go 1.24.0
 
 require (
-	cloud.google.com/go/pubsub v1.50.0
+	cloud.google.com/go/pubsub v1.50.1
 	cloud.google.com/go/pubsub/v2 v2.0.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/felixge/httpsnoop v1.0.4
@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/jackc/pgx/v5 v5.7.5
+	github.com/jackc/pgx/v5 v5.7.6
 	github.com/reugn/go-quartz v0.15.1
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
@@ -33,8 +33,8 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/time v0.12.0
 	google.golang.org/api v0.248.0
-	google.golang.org/grpc v1.75.0
-	google.golang.org/protobuf v1.36.8
+	google.golang.org/grpc v1.75.1
+	google.golang.org/protobuf v1.36.9
 )
 
 require (
