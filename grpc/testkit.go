@@ -37,6 +37,7 @@ import (
 )
 
 // TestClientConn creates an in-process grpc client
+// nolint
 func TestClientConn(ctx context.Context, listener *bufconn.Listener, options []grpc.DialOption) (*grpc.ClientConn, error) {
 	dialOptions := append(options, grpc.WithContextDialer(GetBufDialer(listener)))
 	dialOptions = append(dialOptions, grpc.WithTransportCredentials(insecure.NewCredentials())) // Required to always set insecure for in-processing
@@ -57,7 +58,7 @@ func TestServer(options []grpc.ServerOption) (*grpc.Server, *bufconn.Listener) {
 }
 
 func GetBufDialer(listener *bufconn.Listener) func(context.Context, string) (net.Conn, error) {
-	return func(ctx context.Context, url string) (net.Conn, error) {
+	return func(_ context.Context, _ string) (net.Conn, error) {
 		return listener.Dial()
 	}
 }

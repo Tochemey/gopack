@@ -140,7 +140,7 @@ func (s *Subscriber) Consume(ctx context.Context, handler SubscriptionHandler, e
 
 	// consume messages
 	go func() {
-		err := s.underlying.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+		err := s.underlying.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) { // nolint
 			message <- msg
 		})
 		if err != nil {

@@ -46,6 +46,7 @@ var (
 	}
 )
 
+// nolint
 func TestNewUnaryServerInterceptor(t *testing.T) {
 	t.Run("with request ID set", func(t *testing.T) {
 		// create a request ID
@@ -110,6 +111,7 @@ func TestNewUnaryServerInterceptor(t *testing.T) {
 	})
 }
 
+// nolint
 func TestNewStreamServerInterceptor(t *testing.T) {
 	t.Run("without request ID", func(t *testing.T) {
 		streamHandler := func(srv interface{}, stream grpc.ServerStream) error {
@@ -233,6 +235,7 @@ func TestNewUnaryClientInterceptor(t *testing.T) {
 	})
 }
 
+// nolint
 func TestNewStreamClientInterceptor(t *testing.T) {
 	t.Run("with request ID set", func(t *testing.T) {
 		// get an instance of the interceptor

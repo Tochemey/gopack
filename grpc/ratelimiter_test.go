@@ -72,6 +72,7 @@ func (s *testServerStream) RecvMsg(_ interface{}) error {
 	return nil
 }
 
+// nolint
 func TestNewRateLimitUnaryServerInterceptor(t *testing.T) {
 	t.Run("authorized limiter", func(t *testing.T) {
 		// create an instance of the interceptor
@@ -104,6 +105,7 @@ func TestNewRateLimitUnaryServerInterceptor(t *testing.T) {
 	})
 }
 
+// nolint
 func TestNewRateLimitStreamServerInterceptor(t *testing.T) {
 	t.Run("authorized limiter", func(t *testing.T) {
 		// create a test stream

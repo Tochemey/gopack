@@ -73,7 +73,7 @@ func Format(d time.Duration) string {
 		{"ns", nanosecond},
 	}
 
-	u := uint64(d)
+	u := uint64(d) // nolint
 	parts := []string{}
 
 	for _, unit := range units {

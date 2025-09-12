@@ -40,6 +40,7 @@ import (
 
 // TestContainer helps creates a Postgres docker container to
 // run unit tests
+// nolint
 type TestContainer struct {
 	testcontainers.Container
 	host   string

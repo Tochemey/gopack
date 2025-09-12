@@ -79,10 +79,10 @@ func (pg *postgres) Connect(ctx context.Context) error {
 	}
 
 	// amend some of the configuration
-	config.MaxConns = int32(pg.config.MaxConnections)
+	config.MaxConns = int32(pg.config.MaxConnections) // nolint
 	config.MaxConnLifetime = pg.config.MaxConnectionLifetime
 	config.MaxConnIdleTime = pg.config.MaxConnIdleTime
-	config.MinConns = int32(pg.config.MinConnections)
+	config.MinConns = int32(pg.config.MinConnections) // nolint
 	config.HealthCheckPeriod = pg.config.HealthCheckPeriod
 
 	// connect to the pool

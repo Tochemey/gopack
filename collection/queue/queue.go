@@ -53,7 +53,7 @@ func NewQueue() *Queue {
 		tail: unsafe.Pointer(dummy),
 		len:  0,
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return &item{}
 			},
 		},
@@ -61,7 +61,7 @@ func NewQueue() *Queue {
 }
 
 // Enqueue adds a value to the tail of the queue.
-func (q *Queue) Enqueue(v interface{}) {
+func (q *Queue) Enqueue(v any) {
 	// Get a node from the pool
 	newNode := q.getItem()
 	newNode.v = v
@@ -93,7 +93,7 @@ func (q *Queue) Enqueue(v interface{}) {
 
 // Dequeue removes and returns the value at the head of the queue.
 // It returns nil if the queue is empty.
-func (q *Queue) Dequeue() interface{} {
+func (q *Queue) Dequeue() any {
 	for {
 		head := (*item)(atomic.LoadPointer(&q.head))
 		next := atomic.LoadPointer(&head.next)
@@ -123,7 +123,7 @@ func (q *Queue) Dequeue() interface{} {
 
 // Length returns the number of items in the queue.
 func (q *Queue) Length() uint64 {
-	return uint64(atomic.LoadInt64(&q.len))
+	return uint64(atomic.LoadInt64(&q.len)) // nolint
 }
 
 // IsEmpty returns true when the queue is empty

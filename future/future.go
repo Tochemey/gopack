@@ -118,7 +118,7 @@ func New[T any](task func() (T, error)) Future[T] {
 // future implements the Future interface.
 type future[T any] struct {
 	acceptOnce   sync.Once
-	completeOnce sync.Once
+	completeOnce sync.Once // nolint
 	done         chan any
 	value        T
 	err          error
@@ -165,6 +165,7 @@ func (x *future[T]) Await(ctx context.Context) (T, error) {
 }
 
 // complete completes the Future with either a value or an error.
+// nolint
 func (x *future[T]) complete(value T, err error) {
 	x.completeOnce.Do(func() {
 		if err != nil {

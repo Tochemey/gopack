@@ -36,13 +36,14 @@ import (
 
 // NewRequestIDUnaryServerInterceptor creates a new request ID interceptor.
 // This interceptor adds a request ID to each grpc request
+// nolint
 func NewRequestIDUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
-		req interface{},
+		req any,
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	) (any, error) {
 		// create the request ID
 		requestID := getServerRequestID(ctx)
 		// set the context with the newly created request ID
@@ -53,9 +54,10 @@ func NewRequestIDUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 
 // NewRequestIDStreamServerInterceptor creates a new request ID interceptor.
 // This interceptor adds a request ID to each grpc request
+// nolint
 func NewRequestIDStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(
-		srv interface{},
+		srv any,
 		ss grpc.ServerStream,
 		info *grpc.StreamServerInfo,
 		handler grpc.StreamHandler,

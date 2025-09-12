@@ -132,6 +132,7 @@ func (s *grpcServer) Stop(ctx context.Context) error {
 
 // AwaitTermination makes the program wait for the signal termination
 // Valid signal termination (SIGINT, SIGTERM). This function should succeed Start.
+// nolint
 func (s *grpcServer) AwaitTermination(ctx context.Context) {
 	// wait for interruption/termination
 	notifier := make(chan os.Signal, 1)

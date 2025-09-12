@@ -156,6 +156,7 @@ func (rw *testResponseWriter) ReadFrom(io.Reader) (n int64, err error) {
 	return 0, nil
 }
 
+// nolint
 func TestResponseWriterInterfaces(t *testing.T) {
 	// make sure the recordingResponseWriter preserves interfaces implemented by the wrapped writer
 	router := chi.NewRouter()

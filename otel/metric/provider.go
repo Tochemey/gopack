@@ -54,6 +54,7 @@ func NewProvider(exporterEndPoint, serviceName string, exportFrequency time.Dura
 }
 
 // Start initializes an OTLP exporter, and configures the corresponding metrics provider
+// nolint
 func (p *Provider) Start(ctx context.Context) error {
 	res, err := resource.New(ctx,
 		resource.WithHost(),

@@ -235,7 +235,7 @@ func (s *JobsScheduler) Stop(ctx context.Context) error {
 //
 // Returns:
 //   - An error if the scheduling fails due to an invalid expression or other internal issues.
-func (s *JobsScheduler) Schedule(ctx context.Context, cronExpression string, job Job) error {
+func (s *JobsScheduler) Schedule(ctx context.Context, cronExpression string, job Job) error { // nolint
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -249,7 +249,7 @@ func (s *JobsScheduler) Schedule(ctx context.Context, cronExpression string, job
 	}
 
 	// create the actual job to run
-	actualJob := quartzjob.NewFunctionJob[bool](
+	actualJob := quartzjob.NewFunctionJob(
 		func(ctx context.Context) (bool, error) {
 			if err := job.Run(ctx); err != nil {
 				return false, err

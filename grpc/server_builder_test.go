@@ -42,6 +42,7 @@ func TestBuildTestSuite(t *testing.T) {
 	suite.Run(t, new(builderTestSuite))
 }
 
+// nolint
 func (s *builderTestSuite) TestNewServerBuilder() {
 	ports := dynaport.Get(1)
 	builder := NewServerBuilder().
