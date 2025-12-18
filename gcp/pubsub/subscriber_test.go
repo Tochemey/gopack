@@ -34,10 +34,15 @@ import (
 	"testing"
 	"time"
 
+	pstestpb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/pstest"
 	"cloud.google.com/go/pubsub/v2"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	pubsubv2pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/tochemey/gopack/log/zapl"
@@ -501,4 +506,209 @@ func TestConsume(t *testing.T) {
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
 	})
+}
+
+func TestEnsureTopic(t *testing.T) {
+	t.Run("returns error when get topic fails", func(t *testing.T) {
+		_, client := newTestClient(t, pstest.WithErrorInjection("GetTopic", codes.Unknown, "boom"))
+		err := ensureTopic(context.Background(), client, "bad-topic")
+		require.Error(t, err)
+	})
+
+	t.Run("returns nil when topic exists", func(t *testing.T) {
+		ctx := context.Background()
+		_, client := newTestClient(t)
+
+		_, err := client.TopicAdminClient.CreateTopic(ctx, &pubsubv2pb.Topic{
+			Name: TopicFullName(projectID, "existing-topic"),
+		})
+		require.NoError(t, err)
+
+		require.NoError(t, ensureTopic(ctx, client, "existing-topic"))
+	})
+
+	t.Run("returns error when topic creation fails", func(t *testing.T) {
+		_, client := newTestClient(t, pstest.WithErrorInjection("CreateTopic", codes.Internal, "boom"))
+		err := ensureTopic(context.Background(), client, "broken-topic")
+		require.Error(t, err)
+	})
+
+	t.Run("returns error when topic creation returns empty topic", func(t *testing.T) {
+		reactor := pstest.ServerReactorOption{
+			FuncName: "CreateTopic",
+			Reactor:  emptyTopicReactor{},
+		}
+		_, client := newTestClient(t, reactor)
+
+		err := ensureTopic(context.Background(), client, "empty-topic")
+		require.EqualError(t, err, "failed to create topic projects/test/topics/empty-topic: topic projects/test/topics/empty-topic creation returned empty topic")
+	})
+}
+
+func TestEnsureSubscription(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("updates subscription when it already exists", func(t *testing.T) {
+		updateReactor := pstest.ServerReactorOption{
+			FuncName: "UpdateSubscription",
+			Reactor:  updateSubscriptionReactor{},
+		}
+		_, client := newTestClient(t, updateReactor)
+		topicFullName := TopicFullName(projectID, "ensure-sub-topic")
+		_, err := client.TopicAdminClient.CreateTopic(ctx, &pubsubv2pb.Topic{Name: topicFullName})
+		require.NoError(t, err)
+
+		subscription := &pubsubv2pb.Subscription{
+			Name:  SubscriptionFullName(projectID, "ensure-sub"),
+			Topic: topicFullName,
+		}
+		_, err = client.SubscriptionAdminClient.CreateSubscription(ctx, subscription)
+		require.NoError(t, err)
+
+		subscription.AckDeadlineSeconds = 20
+		subscription.RetryPolicy = &pubsubv2pb.RetryPolicy{
+			MinimumBackoff: durationpb.New(time.Second),
+			MaximumBackoff: durationpb.New(2 * time.Second),
+		}
+
+		updated, err := ensureSubscription(ctx, client, subscription)
+		require.NoError(t, err)
+		require.EqualValues(t, subscription.AckDeadlineSeconds, updated.AckDeadlineSeconds)
+		require.True(t, proto.Equal(subscription.RetryPolicy, updated.RetryPolicy))
+	})
+
+	t.Run("returns not found when topic does not exist", func(t *testing.T) {
+		_, client := newTestClient(t)
+		subscription := &pubsubv2pb.Subscription{
+			Name:  SubscriptionFullName(projectID, "missing-topic-sub"),
+			Topic: TopicFullName(projectID, "missing-topic"),
+		}
+
+		_, err := ensureSubscription(ctx, client, subscription)
+		require.EqualError(t, err, "topic projects/test/topics/missing-topic not found")
+	})
+
+	t.Run("returns underlying subscription creation error", func(t *testing.T) {
+		_, client := newTestClient(t, pstest.WithErrorInjection("CreateSubscription", codes.PermissionDenied, "denied"))
+		subscription := &pubsubv2pb.Subscription{
+			Name:  SubscriptionFullName(projectID, "denied-sub"),
+			Topic: TopicFullName(projectID, "denied-topic"),
+		}
+
+		_, err := ensureSubscription(ctx, client, subscription)
+		require.Error(t, err)
+	})
+}
+
+func TestNewSubscriberErrors(t *testing.T) {
+	t.Run("returns error when ensureTopic fails", func(t *testing.T) {
+		_, client := newTestClient(t, pstest.WithErrorInjection("GetTopic", codes.Unknown, "boom"))
+		cfg := &SubscriberConfig{
+			SubscriptionConfig: &pubsubv2pb.Subscription{
+				Topic: "bad-topic",
+				Name:  SubscriptionFullName(projectID, "bad-sub"),
+			},
+			Logger: zapl.DiscardLogger,
+		}
+
+		subscriber, err := NewSubscriber(context.Background(), client, cfg)
+		require.Nil(t, subscriber)
+		require.Error(t, err)
+	})
+
+	t.Run("returns error when ensureSubscription fails", func(t *testing.T) {
+		_, client := newTestClient(t, pstest.WithErrorInjection("CreateSubscription", codes.InvalidArgument, "bad-sub"))
+		cfg := &SubscriberConfig{
+			SubscriptionConfig: &pubsubv2pb.Subscription{
+				Topic: "create-subscription-error-topic",
+				Name:  SubscriptionFullName(projectID, "create-subscription-error"),
+			},
+			Logger: zapl.DiscardLogger,
+		}
+
+		subscriber, err := NewSubscriber(context.Background(), client, cfg)
+		require.Nil(t, subscriber)
+		require.Error(t, err)
+	})
+
+	t.Run("NewSubscriberWithDefaults propagates creation errors", func(t *testing.T) {
+		_, client := newTestClient(t, pstest.WithErrorInjection("CreateTopic", codes.Internal, "boom"))
+
+		subscriber, err := NewSubscriberWithDefaults(context.Background(), client, "defaults-sub", "defaults-topic")
+		require.Nil(t, subscriber)
+		require.Error(t, err)
+	})
+}
+
+func TestConsumeErrors(t *testing.T) {
+	t.Run("sends receive errors to channel", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		_, client := newTestClient(t)
+		subscriber := &Subscriber{
+			underlying: client.Subscriber("missing-subscription"),
+			logger:     zapl.DiscardLogger,
+		}
+
+		errChan := make(chan error, 1)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			subscriber.Consume(ctx, func(context.Context, []byte) error { return nil }, errChan)
+		}()
+
+		select {
+		case err := <-errChan:
+			require.Error(t, err)
+		case <-time.After(2 * time.Second):
+			t.Fatal("expected error on errChan")
+		}
+
+		cancel()
+		wg.Wait()
+		for range errChan {
+		}
+	})
+
+	t.Run("skips sending error when errChan already has a value", func(t *testing.T) {
+		_, client := newTestClient(t)
+		subscriber := &Subscriber{
+			underlying: client.Subscriber("missing-subscription"),
+			logger:     zapl.DiscardLogger,
+		}
+
+		errChan := make(chan error, 1)
+		errChan <- errors.New("prefilled")
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			subscriber.Consume(ctx, func(context.Context, []byte) error { return nil }, errChan)
+		}()
+
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+		wg.Wait()
+		for range errChan {
+		}
+	})
+}
+
+type emptyTopicReactor struct{}
+
+func (emptyTopicReactor) React(_ interface{}) (handled bool, ret interface{}, err error) {
+	return true, &pstestpb.Topic{}, nil
+}
+
+type updateSubscriptionReactor struct{}
+
+func (updateSubscriptionReactor) React(req interface{}) (handled bool, ret interface{}, err error) {
+	updateReq := req.(*pstestpb.UpdateSubscriptionRequest)
+	return true, updateReq.Subscription, nil
 }

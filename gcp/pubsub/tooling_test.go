@@ -28,9 +28,12 @@ import (
 	"context"
 	"testing"
 
+	"cloud.google.com/go/pubsub/pstest"
 	"cloud.google.com/go/pubsub/v2"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 )
 
 // account is a test struct
@@ -44,6 +47,25 @@ const (
 	projectID    = "test"
 	subscriberID = "some-subscriber"
 )
+
+func newTestClient(t *testing.T, opts ...pstest.ServerReactorOption) (*pstest.Server, *pubsub.Client) {
+	t.Helper()
+
+	server := pstest.NewServer(opts...)
+	t.Cleanup(func() {
+		_ = server.Close()
+	})
+	t.Setenv("PUBSUB_EMULATOR_HOST", server.Addr)
+
+	ctx := context.Background()
+	client, err := pubsub.NewClient(ctx, projectID)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = client.Close()
+	})
+
+	return server, client
+}
 
 func TestCreateTopic(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
@@ -76,4 +98,24 @@ func TestCreateTopic(t *testing.T) {
 		err = emulator.Cleanup()
 		assert.NoError(t, err)
 	})
+
+	t.Run("returns error from API", func(t *testing.T) {
+		ctx := context.Background()
+		_, client := newTestClient(t, pstest.WithErrorInjection("CreateTopic", codes.InvalidArgument, "boom"))
+
+		mgmt := NewTooling(client)
+		topic, err := mgmt.CreateTopic(ctx, "bad topic")
+		require.Error(t, err)
+		require.Nil(t, topic)
+	})
+}
+
+func TestListTopicsErrors(t *testing.T) {
+	ctx := context.Background()
+	_, client := newTestClient(t, pstest.WithErrorInjection("ListTopics", codes.Internal, "boom"))
+
+	mgmt := NewTooling(client)
+	topics, err := mgmt.ListTopics(ctx)
+	require.Error(t, err)
+	require.Nil(t, topics)
 }

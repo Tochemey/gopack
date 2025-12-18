@@ -28,10 +28,12 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/pubsub/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/tochemey/gopack/log/zapl"
 )
@@ -209,4 +211,28 @@ func TestPublish(t *testing.T) {
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
 	})
+}
+
+func TestPublishWithPublishSettings(t *testing.T) {
+	ctx := context.Background()
+	_, client := newTestClient(t)
+
+	mgmt := NewTooling(client)
+	_, err := mgmt.CreateTopic(ctx, topicName)
+	require.NoError(t, err)
+
+	pub := NewPublisher(client, zapl.DiscardLogger)
+
+	settings := pubsub.PublishSettings{
+		ByteThreshold:  1,
+		DelayThreshold: time.Millisecond,
+	}
+	topic := &Topic{
+		Name:            topicName,
+		PublishSettings: &settings,
+	}
+
+	message := &Message{Payload: []byte("hello")}
+
+	require.NoError(t, pub.Publish(ctx, topic, []*Message{message}))
 }
