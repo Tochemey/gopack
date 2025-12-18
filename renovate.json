@@ -1,23 +1,24 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
   "constraints": {
     "go": "1.20"
   },
   "enabledManagers": [
-    "regex",
+    "custom.regex",
     "github-actions",
     "gomod"
   ],
   "postUpdateOptions": [
     "gomodTidy"
   ],
-  "regexManagers": [
+  "customManagers": [
     {
-      "fileMatch": [
-        ".github/renovate.json5$"
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/.github/renovate.json5$/"
       ],
       "matchStrings": [
         "constraints: {(\\s*\\n\\s*)\"go\":\\s*\"(?<currentValue>.*?)\""
@@ -27,8 +28,9 @@
       "versioningTemplate": "npm"
     },
     {
-      "fileMatch": [
-        "Earthfile$"
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/Earthfile$/"
       ],
       "matchStrings": [
         "FROM tochemey/docker-go:(?<currentValue>.*?)\\n"
@@ -37,9 +39,10 @@
       "datasourceTemplate": "docker"
     },
     {
-      "fileMatch": [
-        ".github/workflows/build.yml$",
-        ".github/workflows/pr.yml$"
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/.github/workflows/build.yml$/",
+        "/.github/workflows/pr.yml$/"
       ],
       "matchStrings": [
         "version: (?<currentValue>.*?)\\n"
@@ -54,7 +57,7 @@
         "go",
         "golang"
       ],
-      "separateMinorPatch": "true"
+      "separateMinorPatch": true
     },
     {
       "matchPackageNames": [
