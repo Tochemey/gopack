@@ -1,26 +1,24 @@
-/*
- * MIT License
- *
- * Copyright (c) 2022-2025 Arsene Tochemey Gandote
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// MIT License
+//
+// Copyright (c) 2022-2026 Arsene Tochemey Gandote
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 package scheduler
 
@@ -124,7 +122,7 @@ type Scheduler interface {
 
 // JobsScheduler implements Scheduler
 type JobsScheduler struct {
-	mu *sync.Mutex
+	mu sync.Mutex
 	// underlying Scheduler
 	quartzScheduler quartz.Scheduler
 	jobs            map[string]Job
@@ -162,7 +160,6 @@ func NewJobsScheduler(opts ...Option) *JobsScheduler {
 		logger:      zapl.New(log.InfoLevel, os.Stdout),
 		started:     atomic.Bool{},
 		stopTimeout: 3 * time.Second,
-		mu:          &sync.Mutex{},
 	}
 
 	// apply options here
@@ -171,7 +168,10 @@ func NewJobsScheduler(opts ...Option) *JobsScheduler {
 		opt.Apply(scheduler)
 	}
 
-	quartzScheduler, _ := quartz.NewStdScheduler(quartz.WithLogger(newLogWrapper(scheduler.logger)))
+	quartzScheduler, _ := quartz.NewStdScheduler(
+		quartz.WithLogger(newLogWrapper(scheduler.logger)),
+		quartz.WithOutdatedThreshold(24*time.Hour),
+	)
 	scheduler.quartzScheduler = quartzScheduler
 	return scheduler
 }
