@@ -32,11 +32,11 @@ import (
 	"testing"
 	"time"
 
-	pstestpb "cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"cloud.google.com/go/pubsub/pstest"
 	"cloud.google.com/go/pubsub/v2"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	pstestpb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	pubsubv2pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -341,6 +341,93 @@ func TestConsume(t *testing.T) {
 		// cleanup resources
 		assert.NoError(t, emulator.Cleanup())
 		assert.NoError(t, client.Close())
+	})
+	t.Run("consume a published message with panic handler", func(t *testing.T) {
+		// create the go context
+		ctx := context.TODO()
+		emulator := NewEmulator()
+
+		// set the emulator addr
+		t.Setenv("PUBSUB_EMULATOR_HOST", emulator.EndPoint())
+
+		client, err := pubsub.NewClient(ctx, projectID)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+
+		// create an instance of the management suite
+		mgmt := NewTooling(client)
+		require.NotNil(t, mgmt)
+
+		// create the topic using the management API
+		_, err = mgmt.CreateTopic(ctx, topicName)
+		require.NoError(t, err)
+
+		// create an instance of the publisher
+		pub := NewPublisher(client, zapl.DiscardLogger)
+		require.NotNil(t, pub)
+
+		// let us start consuming the messages
+		subCfg := &pubsubpb.Subscription{Topic: TopicFullName(projectID, topicName), Name: SubscriptionFullName(projectID, subscriberID)}
+
+		// create an instance of the subscriber
+		subClient, err := NewSubscriber(ctx, client, &SubscriberConfig{
+			SubscriptionConfig: subCfg,
+			Logger:             zapl.DiscardLogger,
+		})
+		require.NotNil(t, subClient)
+		require.NoError(t, err)
+
+		// create an object to persist
+		acct := &account{
+			AccountID:   "test-account-id",
+			AccountName: "test-account-name",
+		}
+		// let us jsonify the account
+		bytea, err := json.Marshal(acct)
+		require.NoError(t, err)
+		require.NotNil(t, bytea)
+
+		// create the message
+		message := &Message{
+			Key:     "some-key",
+			Payload: bytea,
+		}
+
+		pubTopic := &Topic{Name: topicName, EnableOrdering: true}
+		// let us publish the message
+		err = pub.Publish(ctx, pubTopic, []*Message{message})
+		require.NoError(t, err)
+
+		// consume some messages for 2 seconds
+		cancelCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		handler := func(context.Context, []byte) error {
+			panic("boom")
+		}
+		errChan := make(chan error, 1)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			subClient.Consume(cancelCtx, handler, errChan)
+		}()
+
+		select {
+		case err := <-errChan:
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "panic in subscription handler")
+		case <-time.After(2 * time.Second):
+			t.Fatal("expected handler panic error")
+		}
+
+		cancel()
+		wg.Wait()
+		for range errChan {
+		}
+
+		// cleanup resources
+		require.NoError(t, emulator.Cleanup())
+		require.NoError(t, client.Close())
 	})
 	t.Run("consume a published message with failure handler", func(t *testing.T) {
 		// create the go context

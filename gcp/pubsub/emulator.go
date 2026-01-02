@@ -23,7 +23,7 @@
 package pubsub
 
 import (
-	"cloud.google.com/go/pubsub/pstest"
+	"cloud.google.com/go/pubsub/v2/pstest"
 )
 
 // Emulator helps creates a GCP PubSub emulator to

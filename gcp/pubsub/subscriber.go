@@ -127,7 +127,11 @@ func NewSubscriberWithDefaults(ctx context.Context, client *pubsub.Client, subsc
 // ref: https://cloud.google.com/go/docs/reference/cloud.google.com/go/pubsub/latest#receiving
 func (s *Subscriber) Consume(ctx context.Context, handler SubscriptionHandler, errChan chan error) {
 	// make sure to close the channel when done
-	defer close(errChan)
+	defer func() {
+		if errChan != nil {
+			close(errChan)
+		}
+	}()
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -135,21 +139,22 @@ func (s *Subscriber) Consume(ctx context.Context, handler SubscriptionHandler, e
 	logger := s.logger.WithContext(ctx)
 	logger.Debug("start consuming messages")
 	message := make(chan *pubsub.Message, 1)
+	recvErr := make(chan error, 1)
+	recvCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// consume messages
 	go func() {
-		err := s.underlying.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) { // nolint
-			message <- msg
-		})
-		if err != nil {
+		err := s.underlying.Receive(recvCtx, func(ctx context.Context, msg *pubsub.Message) { // nolint
 			select {
-			// return when the channel is closed
-			case <-errChan:
-				return
+			case message <- msg:
+			case <-recvCtx.Done():
+			}
+		})
+		if err != nil && recvCtx.Err() == nil {
+			select {
+			case recvErr <- err:
 			default:
-				// send the error to channel and return
-				errChan <- err
-				return
 			}
 		}
 	}()
@@ -163,17 +168,30 @@ func (s *Subscriber) Consume(ctx context.Context, handler SubscriptionHandler, e
 			// set the messages received counter
 			atomic.AddInt32(&s.messagesReceivedCount, 1)
 			// pass the consumed message to the handler
-			if err := handler(ctx, msg.Data); err != nil {
+			if err := handleMessage(ctx, handler, msg.Data); err != nil {
 				// set the errChan return
-				errChan <- err
+				if errChan != nil {
+					errChan <- err
+				}
 				// we don't acknowledge the message and allow a quick redelivery rather
 				// than awaiting the message expiration
 				msg.Nack()
+				cancel()
 				return
 			}
 			// acknowledge that message has been processed
 			atomic.AddInt32(&s.messagesProcessedCount, 1)
 			msg.Ack()
+		case err := <-recvErr:
+			if err != nil && errChan != nil {
+				select {
+				case <-errChan:
+				default:
+					errChan <- err
+				}
+			}
+			cancel()
+			return
 		case <-ctx.Done():
 			// add some debug messaging
 			logger.Debugf("Total messages received=%d", s.messagesReceivedCount)
@@ -252,4 +270,13 @@ func applyDefaults(cfg *SubscriberConfig) {
 			MaximumBackoff: durationpb.New(MaximumBackoff),
 		}
 	}
+}
+
+func handleMessage(ctx context.Context, handler SubscriptionHandler, data []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic in subscription handler: %v", r)
+		}
+	}()
+	return handler(ctx, data)
 }

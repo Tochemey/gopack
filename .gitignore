@@ -13,4 +13,5 @@ gen.env
 gen/
 mocks
 /.fleet/settings.json
-
+.cache/
+.gocache/
