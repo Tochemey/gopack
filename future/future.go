@@ -103,8 +103,8 @@ func New[T any](task func() (T, error)) Future[T] {
 	comp := newCompletable[T]()
 	go func() {
 		result, err := task()
-		switch {
-		case err == nil:
+		switch err {
+		case nil:
 			comp.Success(result)
 		default:
 			comp.Failure(err)

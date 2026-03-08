@@ -146,7 +146,7 @@ func (c TestContainer) Schema() string {
 // Call this function inside your TearDownSuite to clean-up resources after each test
 func (c TestContainer) Cleanup() {
 	ctx := context.Background()
-	if err := c.Container.Terminate(ctx); err != nil {
+	if err := c.Container.Terminate(ctx); err != nil { //nolint
 		log.Fatalf("Could not purge resource: %s", err)
 	}
 }

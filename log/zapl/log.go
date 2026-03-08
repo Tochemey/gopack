@@ -320,7 +320,7 @@ func (l *Log) WithContext(ctx context.Context) log.Logger {
 
 	// set the fields when set
 	if len(fields) > 0 {
-		l.Logger.With(fields...)
+		l.Logger = l.Logger.With(fields...)
 	}
 	return l
 }
