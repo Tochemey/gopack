@@ -103,7 +103,7 @@ func NewTestContainer(dbName, dbUser, dbPassword, dbSchema string) *TestContaine
 	testContainer.dbPass = dbPassword
 	testContainer.schema = dbSchema
 	testContainer.host = host
-	testContainer.port = port.Int()
+	testContainer.port = int(port.Num())
 	return testContainer
 }
 
