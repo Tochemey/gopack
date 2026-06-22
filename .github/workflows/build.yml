@@ -17,7 +17,7 @@ jobs:
       - uses: wagoid/commitlint-github-action@v6.2.1
       - name: Run tests
         run: make test
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.out # optional
