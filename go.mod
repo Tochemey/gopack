@@ -10,7 +10,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.4
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/reugn/go-quartz v0.15.2
@@ -33,7 +33,7 @@ require (
 	golang.org/x/time v0.15.0
 	google.golang.org/api v0.285.0
 	google.golang.org/grpc v1.81.1
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
