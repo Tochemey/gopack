@@ -173,11 +173,13 @@ func (s *OtelCollectorSuite) TestStorageGetMetrics() {
 }
 
 func (s *OtelCollectorSuite) TestListener() {
-	ln, err := net.Listen("tcp", "localhost:50051")
-	s.Assert().NoError(err)
+	// port 0 lets the OS pick a free port so the test never collides with
+	// another process (or a parallel test run) that happens to hold a fixed port.
+	ln, err := net.Listen("tcp", "localhost:0")
+	s.Require().NoError(err)
 
 	lnr := NewListener(ln)
-	s.Assert().NotNil(lnr)
+	s.Require().NotNil(lnr)
 
 	addr := lnr.Addr()
 	s.Assert().NotNil(addr)

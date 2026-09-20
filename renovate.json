@@ -1,27 +1,21 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
-  "constraints": {
-    "go": "1.20"
-  },
-  "enabledManagers": [
-    "custom.regex",
-    "github-actions",
-    "gomod"
-  ],
-  "postUpdateOptions": [
-    "gomodTidy"
-  ],
+  "extends": ["config:recommended"],
+  "dependencyDashboard": false,
+  "labels": ["dependencies"],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "osvVulnerabilityAlerts": true,
+  "enabledManagers": ["custom.regex", "github-actions", "gomod"],
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/.github/renovate.json5$/"
-      ],
+      "description": "Go toolchain pinned in the Makefile and Dockerfile",
+      "managerFilePatterns": ["/^Makefile$/", "/^Dockerfile$/"],
       "matchStrings": [
-        "constraints: {(\\s*\\n\\s*)\"go\":\\s*\"(?<currentValue>.*?)\""
+        "GO_VERSION\\s*\\??=\\s*(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)"
       ],
       "depNameTemplate": "go",
       "datasourceTemplate": "golang-version",
@@ -29,73 +23,72 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/Earthfile$/"
-      ],
+      "description": "golangci-lint pinned in the Makefile and Dockerfile",
+      "managerFilePatterns": ["/^Makefile$/", "/^Dockerfile$/"],
       "matchStrings": [
-        "FROM tochemey/docker-go:(?<currentValue>.*?)\\n"
+        "GOLANGCI_LINT_VERSION\\s*\\??=\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)"
       ],
-      "depNameTemplate": "tochemey/docker-go",
-      "datasourceTemplate": "docker"
+      "depNameTemplate": "golangci/golangci-lint",
+      "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/.github/workflows/build.yml$/",
-        "/.github/workflows/pr.yml$/"
-      ],
+      "description": "buf pinned in the Makefile and Dockerfile",
+      "managerFilePatterns": ["/^Makefile$/", "/^Dockerfile$/"],
       "matchStrings": [
-        "version: (?<currentValue>.*?)\\n"
+        "BUF_VERSION\\s*\\??=\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)"
       ],
-      "depNameTemplate": "earthly/earthly",
+      "depNameTemplate": "bufbuild/buf",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "mockery pinned in the Dockerfile",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": [
+        "github\\.com/vektra/mockery/v2@(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "github.com/vektra/mockery/v2",
+      "datasourceTemplate": "go"
     }
   ],
   "packageRules": [
     {
-      "matchPackageNames": [
-        "go",
-        "golang"
-      ],
+      "matchPackageNames": ["go", "golang"],
       "separateMinorPatch": true
     },
     {
-      "matchPackageNames": [
-        "go",
-        "golang"
-      ],
-      "groupName": "go patch version",
-      "matchUpdateTypes": [
-        "patch"
-      ]
+      "matchPackageNames": ["go", "golang"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "go patch version"
+    },
+    {
+      "matchPackageNames": ["go", "golang"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "go minor version"
     },
     {
       "matchPackageNames": [
-        "go",
-        "golang"
+        "golangci/golangci-lint",
+        "bufbuild/buf",
+        "github.com/vektra/mockery/v2"
       ],
-      "groupName": "go minor version",
-      "matchUpdateTypes": [
-        "minor"
-      ]
+      "groupName": "dev tools"
     },
     {
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchUpdateTypes": [
-        "minor"
-      ],
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor"],
       "groupName": "Minor Go modules"
     },
     {
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchUpdateTypes": [
-        "patch"
-      ],
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["patch"],
       "groupName": "Patch Go modules"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "GitHub Actions"
     }
   ]
 }
