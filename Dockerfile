@@ -22,7 +22,7 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
  && go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest \
  && go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest \
  && GO111MODULE=on GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION} \
- && GO111MODULE=on GOBIN=/usr/local/bin go install github.com/vektra/mockery/v2@v2.53.2
+ && GO111MODULE=on GOBIN=/usr/local/bin go install github.com/vektra/mockery/v2@v3.8.0
 
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
         | sh -s -- -b /usr/local/bin ${GOLANGCI_LINT_VERSION}
