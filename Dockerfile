@@ -1,8 +1,8 @@
 ARG GO_VERSION=1.26.0
 FROM golang:${GO_VERSION}-alpine
 
-ARG GOLANGCI_LINT_VERSION=v2.10.1
-ARG BUF_VERSION=v1.65.0
+ARG GOLANGCI_LINT_VERSION=v2.13.2
+ARG BUF_VERSION=v1.73.0
 
 RUN apk --no-cache add \
     bash \
@@ -22,7 +22,7 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
  && go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest \
  && go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest \
  && GO111MODULE=on GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION} \
- && GO111MODULE=on GOBIN=/usr/local/bin go install github.com/vektra/mockery/v2@v2.53.2
+ && GO111MODULE=on GOBIN=/usr/local/bin go install github.com/vektra/mockery/v2@v2.53.7
 
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
         | sh -s -- -b /usr/local/bin ${GOLANGCI_LINT_VERSION}
