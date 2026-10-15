@@ -2,7 +2,7 @@ ARG GO_VERSION=1.26.9
 FROM golang:${GO_VERSION}-alpine
 
 ARG GOLANGCI_LINT_VERSION=v2.14.0
-ARG BUF_VERSION=v1.73.0
+ARG BUF_VERSION=v1.74.0
 
 RUN apk --no-cache add \
     bash \

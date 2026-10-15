@@ -3,7 +3,7 @@ SHELL := /bin/bash
 
 GO_VERSION ?= 1.26.9
 GOLANGCI_LINT_VERSION ?= v2.14.0
-BUF_VERSION ?= v1.73.0
+BUF_VERSION ?= v1.74.0
 
 IMAGE_NAME := gopack-dev
 IMAGE_TAG  ?= $(GO_VERSION)
